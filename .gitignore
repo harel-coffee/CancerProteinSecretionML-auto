@@ -1,0 +1,25 @@
+# Windows default autosave extension
+*.asv
+Thumbs.db
+
+# OSX / *nix default autosave extension
+*.*~
+
+# hidden extensions
+.DS_Store
+
+# other extensions
+*.pyc
+*.mps
+*.ipynb_checkpoints
+*.zip
+
+# logfiles
+*.log
+
+# Windows executable files
+*.exe
+*.exe.*
+
+# Windows dynamic library files
+*.dll
