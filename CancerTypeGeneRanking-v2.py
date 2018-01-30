@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 @author: azams
+
+Edited by Jonathan L. Robinson, 2018-01-30
+
 """
 
 #%%
@@ -32,6 +35,12 @@ RS = 20170628
 # importlib.reload(OD)
 
 #%%
+# Run this line to regenerate the CancerDataStore.h5 file if the 
+# "allcancerdata.csv" file has been modified.
+#OD.prepCancerTypeDict(True)
+
+
+#%%
 #==============================================================================
 # Setting Analysis Parameters
 # Copy the values from CancerDataExploration python notebook.
@@ -40,7 +49,7 @@ CancerType = 'TCGA-BRCA'
 ClassVar = 'CancerStatus' 
 VarLevelsToKeep = ['Primary solid Tumor', 'Solid Tissue Normal']
 
-dimReduction = True 
+dimReduction = False 
 numSigCancers = 10
 
 # Chose one of these two: signifDEgenes numSigCancers
@@ -49,7 +58,7 @@ dimRedMethod = 'numSigCancers'
 
 #%%
 #CancerType = 'TCGA-LIHC'
-CancerDataStore = pd.HDFStore('CancerDataStore.h5')
+CancerDataStore = pd.HDFStore('data/CancerDataStore.h5')
 dfCancerType = CancerDataStore.get(CancerType.split('-')[1])
 CancerDataStore.close()
 #print("Number of samples in the dataset before removing missing values: {0}".format(dfCancerType.shape[0])) 
