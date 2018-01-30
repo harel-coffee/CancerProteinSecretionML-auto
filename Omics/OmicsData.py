@@ -4,6 +4,10 @@
 Created on Mon Mar 20 09:50:10 2017
 
 @author: azams
+Updated by Jonathan L. Robinson, 2018-01-30
+    - Generalized to use data beyond PSN transcriptomics.
+    - Removed/commented older code no longer relevant or used.
+    
 
 code to autoreload 
 %load_ext autoreload
@@ -26,10 +30,10 @@ from sklearn.metrics import roc_curve, auc
 from itertools import cycle
 
 from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
-from sklearn.linear_model import LogisticRegression, RidgeClassifier, SGDClassifier
+#from sklearn.linear_model import LogisticRegression, RidgeClassifier, SGDClassifier
 #from sklearn.ensemble import RandomForestClassifier
 #from sklearn.tree import DecisionTreeClassifier
-from sklearn.naive_bayes import MultinomialNB
+#from sklearn.naive_bayes import MultinomialNB
 #from sklearn.neighbors import KNeighborsClassifier
 #dfPSN = pd.read_csv('BigDataProject/PSN_gene_data.csv')
 #dfSEC = pd.read_csv('BigDataProject/SEC_gene_data.csv')
@@ -41,7 +45,7 @@ from sklearn.naive_bayes import MultinomialNB
 def ReadOMICSdataCSV(fName):
 
     """
-    Reads in the PSN cancer data CSV file,
+    Reads in the omics data CSV file,
     removes the redundant column 'Unnamed: 0'
     and returns the data as a dataframe.
     
@@ -51,59 +55,54 @@ def ReadOMICSdataCSV(fName):
     # Dropping it here.
     if 'Unnamed: 0' in df.columns:
         df.drop('Unnamed: 0', axis=1, inplace=True)
-# Following are the missing vals count for our possible class vars as per the
-# allcancerdata.csv file having 11093 samples in total.
-# Due to high number of missing data for Mortality, we are dropping this column off.
-# Project_____ :    40
-# TumorStage__ :    40
-# Mortality___ :  7785
-# Race________ :    40
-# Gender______ :    40
-    # Dropping off Mortality as it has a lot of missing vals.
-    # In the new allcancerdata file, Mortality is already excluded.
-    # So we try to drop it off only if its there.
-    if 'Mortality' in df.columns:
-        df.drop('Mortality', axis=1, inplace=True)
+
     return df
 ###############################################################################
 ###############################################################################
 
 
-def prepareDFCancerType(dfSpecificCancerData):
-
-    """
-    Given that the PSN cancer data which is already filtered for a 
-    specific cancer type (optional, NOT necessary!) is passed as a dataframe, it
-     i) separates the genes (features) from the target variables (particular to cancer types only), 
-    that is: TumorStage, Race, and Gender
-    ii) asks the user to chose one of them as the class variable
-    iii)removes the rest and adds the chosen variable as the first column, followed by
-    the entire genes (features) and returns as a dataframe ready to work on.
-    """       
-    features = dfSpecificCancerData.iloc[:, 0:575]
-#    f_names = list(features.columns)
-    
-    targets = dfSpecificCancerData.iloc[:, 577:len(dfSpecificCancerData.columns)]
-    t_names = list(targets.columns)
-    print("\n*******************************************************************************")
-    while True:
-        ClassVar = input("Choose a class variable (" + ' '.join(t_names) + "): ")
-        if ClassVar in t_names:
-            break
-        else:
-            print("Please splell correctly!")
-            
-    print("\n*******************************************************************************")
-    target = targets[ClassVar]
-    df = features
-    df[ClassVar] = target
-    
-    # Class variable is the last column, bringing it to the first place.
-    cols = df.columns.tolist()
-    cols = cols[-1:] + cols[:-1]
-    df = df[cols]
-
-    return df
+#def prepareDFCancerType(dfSpecificCancerData):
+#
+#    """
+#    Given the cancer data which is already filtered for a specific 
+#    cancer type (optional, NOT necessary!) is passed as a dataframe, it
+#     i) separates the genes (features) from the class variables (particular to cancer types only), 
+#        such as: TumorStage, Race, and Gender
+#    ii) asks the user to choose one of the class variables
+#    iii)removes the rest of the class variables and adds the chosen variable as the first column(s), followed by
+#    the data for all the genes (features) and returns as a dataframe ready to work on.
+#    """
+#    
+#    # Determine the number of genes (features) and class variables in the dataframe
+#    # Note that the dataframe is arranged such that "CancerStatus" is the first
+#    # class variable, so all columns before "CancerStatus" are genes.
+#    numFeatures = dfSpecificCancerData.columns.get_loc('CancerStatus')
+#    numClassVars = len(dfSpecificCancerData.columns) - numFeatures
+#    
+#    features = dfSpecificCancerData.iloc[:, 0:numFeatures]
+##    f_names = list(features.columns)
+#    
+#    targets = dfSpecificCancerData.iloc[:, 577:len(dfSpecificCancerData.columns)]
+#    t_names = list(targets.columns)
+#    print("\n*******************************************************************************")
+#    while True:
+#        ClassVar = input("Choose a class variable (" + ' '.join(t_names) + "): ")
+#        if ClassVar in t_names:
+#            break
+#        else:
+#            print("Please splell correctly!")
+#            
+#    print("\n*******************************************************************************")
+#    target = targets[ClassVar]
+#    df = features
+#    df[ClassVar] = target
+#    
+#    # Class variable is the last column, bringing it to the first place.
+#    cols = df.columns.tolist()
+#    cols = cols[-1:] + cols[:-1]
+#    df = df[cols]
+#
+#    return df
 ###############################################################################
 
 ###############################################################################
@@ -118,11 +117,17 @@ def prepareDFgeneral(dfAllCancerData):
     ii) asks the user to chose one of them as the class variable
     iii)removes the rest and adds the chosen variable as the first column, followed by
     the entire genes (features) and returns as a dataframe ready to work on.    
-    """       
-    features = dfAllCancerData.iloc[:, 0:575]
+    """      
+    
+    # Determine the number of genes (features) in the dataframe
+    # Note that the dataframe is arranged such that "CancerStatus" is the first
+    # class variable, so all columns before "CancerStatus" are genes.
+    numFeatures = dfAllCancerData.columns.get_loc('CancerStatus')
+    
+    features = dfAllCancerData.iloc[:, 0:numFeatures]
 #    f_names = list(features.columns)
     
-    targets = dfAllCancerData.iloc[:, 575:len(dfAllCancerData.columns)]
+    targets = dfAllCancerData.iloc[:, numFeatures:len(dfAllCancerData.columns)]
     t_names = list(targets.columns)
     print("\n*******************************************************************************")
     while True:
@@ -153,8 +158,14 @@ def prepareDF(dfAllCancerData, ClassVar):
     ii) keeps the column corresponding to ClassVar and removes the rest
     iii) and moves it to be the first column, followed by
     the entire genes (features) and returns as a dataframe ready to work on.    
-    """       
-    features = dfAllCancerData.iloc[:, 0:575]
+    """
+    
+    # Determine the number of genes (features) in the dataframe
+    # Note that the dataframe is arranged such that "CancerStatus" is the first
+    # class variable, so all columns before "CancerStatus" are genes.
+    numFeatures = dfAllCancerData.columns.get_loc('CancerStatus')
+    
+    features = dfAllCancerData.iloc[:, 0:numFeatures]
     target = dfAllCancerData[ClassVar]
     df = features
     df[ClassVar] = target
@@ -176,9 +187,15 @@ def prepareDF_Mod(dfAllCancerData, TargetVariable):
     i) separates the Genes (features) from the target variables,
     ii) asks the user to chose one of them as the class variable
     iii) adds it as the first column of features and returns a dataframe
-        ready to work on.    
-    """       
-    features = dfAllCancerData.iloc[:, 0:575]   
+        ready to work on.
+    """
+    
+    # Determine the number of genes (features) in the dataframe
+    # Note that the dataframe is arranged such that "CancerStatus" is the first
+    # class variable, so all columns before "CancerStatus" are genes.
+    numFeatures = dfAllCancerData.columns.get_loc('CancerStatus')
+    
+    features = dfAllCancerData.iloc[:, 0:numFeatures]   
     CancerStatuses = dfAllCancerData[TargetVariable]
     df = features    
     df[TargetVariable] = CancerStatuses
@@ -215,10 +232,11 @@ def printNaNs(df):
 ###############################################################################
 
 ###############################################################################
-def dropNaNs(df):
+def dropNaNs(df, ClassVar='none'):
 
     """
-    Given that the PSN cancer data is passed as a dataframe, it
+    Given the omics data passed as a dataframe, and (optionally) the name of a
+    class variable, it
     
     i) prints the total number of samples in the dataset.
     ii) if none of the samples have any missing values, it returns the same dataframe, else:
@@ -230,7 +248,12 @@ def dropNaNs(df):
     print("\n********************************************************************")
     print("Number of samples in the dataset: {0}".format(df.shape[0]))
     print("********************************************************************")
-    dfdna = df.dropna()
+
+    if ClassVar == 'none':
+        dfdna = df.dropna()
+    else:
+        dfdna = df.dropna(subset=[ClassVar])
+
     if df.shape[0] > dfdna.shape[0]:
         print("Number of samples having missing values: {0}".format(df.shape[0]- dfdna.shape[0]))
         print("Number of samples remained after dropping samples with missing data: {0}".format(dfdna.shape[0]))
@@ -281,13 +304,14 @@ def RemoveExtraLevels(df, ClassVar, toRemove):
 def FilterLevels(df, ClassVar, toKeep, printStats='yes'):
 
     """
-    Given that the PSN cancer data is passed as a dataframe, Class variable as string, 
-    and a list of values of class variable which need to be removed
+    Given the cancer data as a dataframe, Class variable as string, 
+    and a list of values of that class variable which should be kept:
     i) prints the total number of samples in the dataset
-    ii) Prints all distinct values and the number of samples corresponding to these values
+    ii) Prints all distinct class variable values and the number of samples
+        corresponding to these values
     iii) It also displays the total number of missing values(if any) as NaN
-    """   
-    df_new = pd.DataFrame()     
+    """
+    df_new = pd.DataFrame()
     for x in toKeep:
         df_temp = df[df[ClassVar] == x]
         df_new = df_new.append(df_temp)
@@ -342,7 +366,7 @@ def fitScalarTransform(df):
     Returns X_scaled and y. 
     y is the column corresponding to the class variable.
     X_scaled contains are all other variables on which scaling is applied.
-    contains 
+    contains
     """
     array = df.values
     X = array[:,1:len(df.columns)]
@@ -568,10 +592,10 @@ def GeneExpression(df,Level):
     This function takes in a data frame with only the values of the Gene expression
     and provides the list of genes whose gene expression values lie in the lower 2 percentile of the population.
     """
-    df_Gene=df.ix[:,1:576]
+    df_Gene=df.iloc[:,1:]
     data_stats = pd.DataFrame()
     median = []
-    mean = []    
+    mean = []
     for i in df_Gene.columns.values:
         median.append(mt.log10(df_Gene[i].median()+1))
         mean.append(mt.log10(df_Gene[i].mean()+1))
@@ -597,9 +621,10 @@ def prepCancerTypeDict(hdfStore=False):
     This function loads the entire PSN cancer dataset from  'allcancerdata.csv' 
     and returns a disctionaly of dataframes, where each dataframe corresponds 
     to a cancer types. 
-    """   
-        # Import data from csv to a data frame
-    df = ReadOMICSdataCSV("allcancerdata")
+    """ 
+    
+    # Import data from csv to a data frame
+    df = ReadOMICSdataCSV("data/allcancerdata")
     df = df.dropna(subset = ['Project'])
     projects = df['Project'].unique()
     arr = []
@@ -616,7 +641,7 @@ def prepCancerTypeDict(hdfStore=False):
     
     # For hdfStore=True, we write the dictionay to a hdfStore.
     if hdfStore:
-        CancerDataStore = pd.HDFStore('CancerDataStore.h5')
+        CancerDataStore = pd.HDFStore('data/CancerDataStore.h5')
         for (key, value) in cancerTypesDic.items():
             # keys are names of cancers, e.g., TCGA-BRCA. Using split to ignore the TCGA- part and use
             # the rest as the name. With prefix TCGA-, it is not a valid Python identifier.
@@ -784,51 +809,51 @@ def plotPCAvsLDA(X, y, nComp, target_names, save=False):
             
             plt.show()
 ###############################################################################
-def CancerTypesDiscAnalysis(dfAllOD, CancerTypes, nComp = 2, save=False):
-    """    
-    We want to analyze how well different cancer types are separated from each other.
-    We filter out samples where 'CancerStatus' = 'Primary solid Tumor' and ClassVar = 'Project'.
-    Then we chose which CancerTypes to compare against each other and draw plots using PCA and LDA
-    for the analysis purposes. 
-    dfAllOD is dataframe of all PSN data
-    CancerTypes is a list of the cancer types that we want to compare against each other. 
-    To be able to see LDA plots, compare a min of 3 cancer types at a time.
-    """    
-    # from CancerStatus keep only 'Primary solid Tumor'
-    ClassVar = 'CancerStatus'
-    toKeep = ['Primary solid Tumor']
-    df_pst = FilterLevels(dfAllOD, ClassVar, toKeep)
-    
-    # Now remove extra variables, we keep only Project 
-    df_pst.drop(['CancerStatus', 'TumorStage', 'Race', 'Gender'], axis=1, inplace=True)
-    
-#    # Print counts for missing values.
-#    OD.printNaNs(df_pst)
-
-    # drop all the rows where there is any missing data
-    dfdna_pst = dropNaNs(df_pst)
-    
-    # Class variable is the last column, bringing it to the first place.
-    cols = dfdna_pst.columns.tolist()
-    cols = cols[-1:] + cols[:-1]
-    dfdna_pst = dfdna_pst[cols]
-    
-    ClassVar = 'Project'
-#    OD.printClassVarValCounts(dfdna_pst,ClassVar)
-#    ProjectIDS = OD.returnVarLevels(dfdna_pst, ClassVar)
-    
-    dfdna_pst_fl = FilterLevels(dfdna_pst, ClassVar, CancerTypes)
-    
-    dfdna_pst_fl, ClassVarEncOrder = mapClassVar(dfdna_pst_fl,ClassVar)
-    
-    dfdna_pst_fl_cd = CleanData(dfdna_pst_fl,2)
-        
-    X_scaled_lg, y_lg = fitLogTransform(dfdna_pst_fl_cd)
-    
-#    target_names = ClassVarEncOrder
-    plotPCAvsLDA(X_scaled_lg, y_lg, nComp, ClassVarEncOrder, save=save)
-
-#    return ClassVarEncOrder
+#def CancerTypesDiscAnalysis(dfAllOD, CancerTypes, nComp = 2, save=False):
+#    """    
+#    We want to analyze how well different cancer types are separated from each other.
+#    We filter out samples where 'CancerStatus' = 'Primary solid Tumor' and ClassVar = 'Project'.
+#    Then we chose which CancerTypes to compare against each other and draw plots using PCA and LDA
+#    for the analysis purposes. 
+#    dfAllOD is dataframe of all PSN data
+#    CancerTypes is a list of the cancer types that we want to compare against each other. 
+#    To be able to see LDA plots, compare a min of 3 cancer types at a time.
+#    """    
+#    # from CancerStatus keep only 'Primary solid Tumor'
+#    ClassVar = 'CancerStatus'
+#    toKeep = ['Primary solid Tumor']
+#    df_pst = FilterLevels(dfAllOD, ClassVar, toKeep)
+#    
+#    # Now remove extra variables, we keep only Project 
+#    df_pst.drop(['CancerStatus', 'TumorStage', 'Race', 'Gender'], axis=1, inplace=True)
+#    
+##    # Print counts for missing values.
+##    OD.printNaNs(df_pst)
+#
+#    # drop all the rows where there is any missing data
+#    dfdna_pst = dropNaNs(df_pst)
+#    
+#    # Class variable is the last column, bringing it to the first place.
+#    cols = dfdna_pst.columns.tolist()
+#    cols = cols[-1:] + cols[:-1]
+#    dfdna_pst = dfdna_pst[cols]
+#    
+#    ClassVar = 'Project'
+##    OD.printClassVarValCounts(dfdna_pst,ClassVar)
+##    ProjectIDS = OD.returnVarLevels(dfdna_pst, ClassVar)
+#    
+#    dfdna_pst_fl = FilterLevels(dfdna_pst, ClassVar, CancerTypes)
+#    
+#    dfdna_pst_fl, ClassVarEncOrder = mapClassVar(dfdna_pst_fl,ClassVar)
+#    
+#    dfdna_pst_fl_cd = CleanData(dfdna_pst_fl,2)
+#        
+#    X_scaled_lg, y_lg = fitLogTransform(dfdna_pst_fl_cd)
+#    
+##    target_names = ClassVarEncOrder
+#    plotPCAvsLDA(X_scaled_lg, y_lg, nComp, ClassVarEncOrder, save=save)
+#
+##    return ClassVarEncOrder
 ###############################################################################
 def dfCancerTypesOrdered(dfAllOD):
     """    
@@ -845,8 +870,15 @@ def dfCancerTypesOrdered(dfAllOD):
     toKeep = ['Solid Tissue Normal', 'Primary solid Tumor']
     df_pst = FilterLevels(dfAllOD, ClassVar, toKeep)
     
-    # Now remove extra variables, we keep only Project 
-    df_pst.drop(['CancerStatus', 'TumorStage', 'TumorStageMerged', 'OverallSurvival', 'Race', 'Gender'], axis=1, inplace=True)
+    # Determine the number of genes (features) in the dataframe
+    # Note that the dataframe is arranged such that "CancerStatus" is the first
+    # class variable, so all columns before "CancerStatus" are genes.
+    numFeatures = dfAllOD.columns.get_loc('CancerStatus')
+    
+    # Now remove extra variables, we keep only Project
+    remVars = df_pst.columns[numFeatures:].tolist()
+    remVars.remove('Project')
+    df_pst.drop(remVars, axis=1, inplace=True)
     
     # drop all the rows where there is any missing data
     dfdna_pst = dropNaNs(df_pst)
@@ -904,13 +936,12 @@ def tSNEscatter(x, colors, ClassVarEncOrder, nClasses):
     # We create a scatter plot.
     f = plt.figure(figsize=(8, 8))
     ax = plt.subplot(aspect='equal')
-    sc = ax.scatter(x[:,0], x[:,1], lw=0, s=40,
-                    c=palette[colors.astype(np.int)])
+    sc = ax.scatter(x[:,0], x[:,1], lw=0, s=40, c=palette[colors.astype(np.int)])
  #   plt.xlim(-25, 25)
  #   plt.ylim(-25, 25)
     ax.axis('off')
     ax.axis('tight')
-    plt.title('TSNE 2D projection applied to PSN dataset')
+    plt.title('TSNE 2D projection applied to dataset')
 
     # We add the labels for each class.
     txts = []
@@ -982,15 +1013,15 @@ def RecursiceFeatureElimCV(mod_name, CV, classifier, data,n_splits, scoring):
   return selected_genes, notselected_genes#X, y, rfecv.grid_scores_
 ###############################################################################
 
-def BRCA_TumorStageMapping(x):
-    if x in ['stage ia','stage ib']:
-        return 'stage i'
-    elif x in ['stage iia','stage iib']:
-        return 'stage ii'
-    elif x in ['stage iiia','stage iiib','stage iiic']:
-        return 'stage iii'
-    else:
-        return x
+#def BRCA_TumorStageMapping(x):
+#    if x in ['stage ia','stage ib']:
+#        return 'stage i'
+#    elif x in ['stage iia','stage iib']:
+#        return 'stage ii'
+#    elif x in ['stage iiia','stage iiib','stage iiic']:
+#        return 'stage iii'
+#    else:
+#        return x
 ###############################################################################
         
 def BeegleSearchCommonGenes(beegleSearchResults, localGeneSet=False):
