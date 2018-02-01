@@ -31,8 +31,8 @@ from minepy import MINE
 RS = 20170628
 #%%
 # Run these two lines if there are import errors related to our library: OmicsData
-# import importlib
-# importlib.reload(OD)
+#import importlib
+#importlib.reload(OD)
 
 #%%
 # Run this line to regenerate the CancerDataStore.h5 file if the 
@@ -45,7 +45,7 @@ RS = 20170628
 # Setting Analysis Parameters
 # Copy the values from CancerDataExploration python notebook.
 #==============================================================================
-CancerType = 'TCGA-BRCA'
+CancerType = 'TCGA-ACC'
 ClassVar = 'CancerStatus' 
 VarLevelsToKeep = ['Primary solid Tumor', 'Solid Tissue Normal']
 
@@ -146,7 +146,7 @@ else: # proceed to the normal step if dim reduction is not desired.
 
 # Perform label encoding for the ClassVar and scale data using log transform
 dfAnalysis_fl_cd, ClassVarEncOrder = OD.mapClassVar(dfAnalysis_fl_cd,ClassVar)
-X, y = OD.fitLogTransform(dfAnalysis_fl_cd)
+X, y = OD.fitLogTransform(dfAnalysis_fl_cd, 1)
 
 #%%
 print("Performing ranking of the genes.")
