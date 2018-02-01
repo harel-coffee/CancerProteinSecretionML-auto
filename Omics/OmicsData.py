@@ -385,8 +385,9 @@ def fitScalarTransform(df):
 ###############################################################################
 from sklearn.preprocessing import FunctionTransformer
 
+
 ###############################################################################
-def fitLogTransform(df):
+def fitLogTransform(df,offset):
     array = df.values
     X = array[:,1:len(df.columns)]
 #    y = array[:,0]
@@ -395,8 +396,10 @@ def fitLogTransform(df):
 # Doing so, we get y as int64 which is required at some places e.g., when plotting t-SNE results.     
     y = np.asarray(df.iloc[:,0])
 
-    logScaler = FunctionTransformer(np.log1p)
-    X_scaled = logScaler.transform(X)
+#    logScaler = FunctionTransformer(np.log1p)
+#    X_scaled = logScaler.transform(X)
+    X_scaled = np.log(X + offset)
+    
     return X_scaled, y
 ###############################################################################
 
