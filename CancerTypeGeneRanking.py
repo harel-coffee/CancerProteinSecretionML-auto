@@ -3,7 +3,7 @@
 """
 @author: azams
 
-Edited by Jonathan L. Robinson, 2018-01-30
+Edited by Jonathan L. Robinson, 2018-02-01
 
 """
 
@@ -45,7 +45,7 @@ RS = 20170628
 # Setting Analysis Parameters
 # Copy the values from CancerDataExploration python notebook.
 #==============================================================================
-CancerType = 'TCGA-ACC'
+CancerType = 'TCGA-LIHC'
 ClassVar = 'CancerStatus' 
 VarLevelsToKeep = ['Primary solid Tumor', 'Solid Tissue Normal']
 
@@ -104,7 +104,7 @@ if 'not reported' in ClassVarLevelsSorted:
     ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
     ClassVarLevelsFreqTab
     
-print("\nVarLevelsToKeep = {0}".format(ClassVarLevelsSorted))
+print("\nVarLevels = {0}".format(ClassVarLevelsSorted))
 #%%
 # Keep samples only for the values in VarLevelsToKeep while samples corresponding to the rest are filtered out.
 dfAnalysis_fl = OD.FilterLevels(dfAnalysis, ClassVar, VarLevelsToKeep, printStats='no')
@@ -178,12 +178,12 @@ svmSVC.fit(X,y)
 ranks["SVMlinear"] = OD.Ranks2Dict(np.abs((svmSVC.coef_.T).T[0]), geneNames)
 
 
-# Computing genes ranking based on their individual performance using the SVM model.
-indGeneScores = []
-for i in range(X.shape[1]):
-     score = cross_val_score(svmSVC, X[:, i:i+1], y, scoring='accuracy', cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
-     indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
-ranks["SVMlinearindvGenes"] = dict(zip(geneNames, indGeneScores ))
+## Computing genes ranking based on their individual performance using the SVM model.
+#indGeneScores = []
+#for i in range(X.shape[1]):
+#     score = cross_val_score(svmSVC, X[:, i:i+1], y, scoring='accuracy', cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
+#     indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
+#ranks["SVMlinearindvGenes"] = dict(zip(geneNames, indGeneScores ))
 
 xgb = XGBClassifier()
 xgb.fit(X, y)
@@ -193,12 +193,12 @@ lda =  LinearDiscriminantAnalysis()
 lda.fit(X, y)
 ranks["LDA"] = OD.Ranks2Dict(np.abs((lda.coef_.T).T[0]), geneNames)
 
-# Computing genes ranking based on their individual performance using the LDA model.
-indGeneScores = []
-for i in range(X.shape[1]):
-     score = cross_val_score(lda, X[:, i:i+1], y, scoring='accuracy', cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
-     indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
-ranks["LDAindvGenes"] = dict(zip(geneNames, indGeneScores ))
+## Computing genes ranking based on their individual performance using the LDA model.
+#indGeneScores = []
+#for i in range(X.shape[1]):
+#     score = cross_val_score(lda, X[:, i:i+1], y, scoring='accuracy', cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
+#     indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
+#ranks["LDAindvGenes"] = dict(zip(geneNames, indGeneScores ))
 
     
 ridgeCLF = RidgeClassifier()
@@ -230,9 +230,9 @@ for name in geneNames:
 ranks["Average"] = r
 #methods.append("Average")
 
-rfeSVM = RFE(svm.SVC(kernel='linear'), n_features_to_select=1)
-rfeSVM.fit(X,y)
-ranks["rfeSVM"] = dict(zip(geneNames, rfeSVM.ranking_ ))
+#rfeSVM = RFE(svm.SVC(kernel='linear'), n_features_to_select=1)
+#rfeSVM.fit(X,y)
+#ranks["rfeSVM"] = dict(zip(geneNames, rfeSVM.ranking_ ))
 #methods.append("SVMrfe")
 #
 #rfe = RFE(extc, n_features_to_select=1)
@@ -240,9 +240,9 @@ ranks["rfeSVM"] = dict(zip(geneNames, rfeSVM.ranking_ ))
 #ranks["rfeExtraTree"] = dict(zip(geneNames, rfe.ranking_ ))
 #methods.append("rfeExtraTree")
 
-rfeRFC = RFE(RandomForestClassifier(n_estimators=200, random_state=RS), n_features_to_select=1)
-rfeRFC.fit(X,y)
-ranks["rfeRFC"] = dict(zip(geneNames, rfeRFC.ranking_ ))#OD.Ranks2Dict(np.array(rfeRFC.ranking_, dtype=float), geneNames)#, order=1)
+#rfeRFC = RFE(RandomForestClassifier(n_estimators=200, random_state=RS), n_features_to_select=1)
+#rfeRFC.fit(X,y)
+#ranks["rfeRFC"] = dict(zip(geneNames, rfeRFC.ranking_ ))#OD.Ranks2Dict(np.array(rfeRFC.ranking_, dtype=float), geneNames)#, order=1)
 
 dfRanks = pd.DataFrame.from_dict(ranks)
 dfRanks.reset_index(inplace=True)
