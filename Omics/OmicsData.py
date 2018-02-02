@@ -619,7 +619,7 @@ def CleanData (df, Level):
     return df_clean
     
 ###############################################################################
-def prepCancerTypeDict(hdfStore=False):
+def prepCancerTypeDict(hdfStore=False, inFile='allcancerdata', outFile='CancerDataStore'):
     """
     This function loads the entire PSN cancer dataset from  'allcancerdata.csv' 
     and returns a disctionaly of dataframes, where each dataframe corresponds 
@@ -627,7 +627,7 @@ def prepCancerTypeDict(hdfStore=False):
     """ 
     
     # Import data from csv to a data frame
-    df = ReadOMICSdataCSV("data/allcancerdata")
+    df = ReadOMICSdataCSV('data/' + inFile)
     df = df.dropna(subset = ['Project'])
     projects = df['Project'].unique()
     arr = []
@@ -644,14 +644,14 @@ def prepCancerTypeDict(hdfStore=False):
     
     # For hdfStore=True, we write the dictionay to a hdfStore.
     if hdfStore:
-        CancerDataStore = pd.HDFStore('data/CancerDataStore.h5')
+        CancerDataStore = pd.HDFStore('data/' + outFile + '.h5')
         for (key, value) in cancerTypesDic.items():
             # keys are names of cancers, e.g., TCGA-BRCA. Using split to ignore the TCGA- part and use
             # the rest as the name. With prefix TCGA-, it is not a valid Python identifier.
             CancerDataStore.put(key.split('-')[1], value)
             print("{0} successfully saved in store!".format(key))
         
-        print(CancerDataStore)
+        #print(CancerDataStore)
         CancerDataStore.close()
     
     return cancerTypesDic
