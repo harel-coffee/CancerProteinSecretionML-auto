@@ -698,7 +698,7 @@ def plotPCA(X, y, nComp, target_names, save=False):
                 plt.scatter(X_r[y == i, xComp-1], X_r[y == i, yComp-1], color=color, alpha=.8, lw=lw,
                             label=target_name)
             plt.legend(loc='best', shadow=False, scatterpoints=1)
-            plt.title('PCA applied to PSN dataset')
+            plt.title('PCA applied to dataset')
             plt.xlabel('PCA ' + str(xComp))
             plt.ylabel('PCA ' + str(yComp))
             if save:
@@ -710,7 +710,7 @@ def plotPCA(X, y, nComp, target_names, save=False):
 def plotLDA(X, y, nComp, target_names, save=False):
     """
     =======================================================
-    Comparison of LDA and PCA 2D projection of PSN dataset
+    Comparison of LDA and PCA 2D projection of dataset
     =======================================================
     
     Principal Component Analysis (PCA) applied to this data identifies the
@@ -740,7 +740,7 @@ def plotLDA(X, y, nComp, target_names, save=False):
                 plt.scatter(X_r2[y == i, xComp-1], X_r2[y == i, yComp-1], alpha=.8, color=color, lw=lw,
                             label=target_name)
             plt.legend(loc='best', shadow=False, scatterpoints=1)
-            plt.title('LDA applied to PSN dataset')
+            plt.title('LDA applied to dataset')
             plt.xlabel('LDA ' + str(xComp))
             plt.ylabel('LDA ' + str(yComp))
             if save:
@@ -754,7 +754,7 @@ def plotLDA(X, y, nComp, target_names, save=False):
 def plotPCAvsLDA(X, y, nComp, target_names, save=False):
     """
     =======================================================
-    Comparison of LDA and PCA 2D projection of PSN dataset
+    Comparison of LDA and PCA 2D projection of dataset
     =======================================================
     
     Principal Component Analysis (PCA) applied to this data identifies the
@@ -793,7 +793,7 @@ def plotPCAvsLDA(X, y, nComp, target_names, save=False):
                 plt.scatter(X_r[y == i, xComp-1], X_r[y == i, yComp-1], color=color, alpha=.8, lw=lw,
                             label=target_name)
             plt.legend(loc='best', shadow=False, scatterpoints=1)
-            plt.title('PCA applied to PSN dataset')
+            plt.title('PCA applied to dataset')
             plt.xlabel('PCA ' + str(xComp))
             plt.ylabel('PCA ' + str(yComp))
             if save:
@@ -804,7 +804,7 @@ def plotPCAvsLDA(X, y, nComp, target_names, save=False):
                 plt.scatter(X_r2[y == i, xComp-1], X_r2[y == i, yComp-1], alpha=.8, color=color, lw=lw,
                             label=target_name)
             plt.legend(loc='best', shadow=False, scatterpoints=1)
-            plt.title('LDA applied to PSN dataset')
+            plt.title('LDA applied to dataset')
             plt.xlabel('LDA ' + str(xComp))
             plt.ylabel('LDA ' + str(yComp))
             if save:
@@ -818,7 +818,7 @@ def plotPCAvsLDA(X, y, nComp, target_names, save=False):
 #    We filter out samples where 'CancerStatus' = 'Primary solid Tumor' and ClassVar = 'Project'.
 #    Then we chose which CancerTypes to compare against each other and draw plots using PCA and LDA
 #    for the analysis purposes. 
-#    dfAllOD is dataframe of all PSN data
+#    dfAllOD is dataframe of all data
 #    CancerTypes is a list of the cancer types that we want to compare against each other. 
 #    To be able to see LDA plots, compare a min of 3 cancer types at a time.
 #    """    
@@ -864,7 +864,7 @@ def dfCancerTypesOrdered(dfAllOD):
     We filter out samples where 'CancerStatus' = 'Primary solid Tumor' and ClassVar = 'Project'.
     Then we chose which CancerTypes to compare against each other and draw plots using PCA and LDA
     for the analysis purposes. 
-    dfAllOD is dataframe of all PSN data
+    dfAllOD is dataframe of all data
     CancerTypes is a list of the cancer types that we want to compare against each other. 
     To be able to see LDA plots, compare a min of 3 cancer types at a time.
     """    
