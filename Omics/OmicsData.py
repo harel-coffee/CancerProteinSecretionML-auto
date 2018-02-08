@@ -593,24 +593,27 @@ def ROCanalysis(mod_name, CV, classifier, X, y, shuffle, folds=10):
 def GeneExpression(df,Level):
     """
     This function takes in a data frame with only the values of the Gene expression
-    and provides the list of genes whose gene expression values lie in the lower 2 percentile of the population.
+    and provides the list of genes whose gene expression values lie in the lower
+    X-percentile (where X = Level) of the population.
+    If Level == 'zero', then genes that have zero expression in all given samples
+    will be returned.
     """
     df_Gene=df.iloc[:,1:]
     data_stats = pd.DataFrame()
-    median = []
-    mean = []
-    for i in df_Gene.columns.values:
-        median.append(mt.log10(df_Gene[i].median()+1))
-        mean.append(mt.log10(df_Gene[i].mean()+1))
-    data_stats['Gene Name']=df_Gene.columns.values
-    data_stats['Median'] = median
-    data_stats['Mean'] = mean
-    percentile = np.percentile(data_stats['Median'],Level)
-    LowCountGene = []
-    for i in data_stats.index.values:
-        if data_stats['Median'][i] <= percentile:
-            LowCountGene.append(data_stats['Gene Name'][i])           
     
+    data_stats['Gene Name']= df_Gene.columns.values
+    data_stats['Median'] = list(df_Gene.median())
+    data_stats['Mean'] = list(df_Gene.mean())
+    
+    if Level == 'zero':
+        # find genes with all zero expression values
+        gene_sums = df_Gene.sum()
+        LowCountGene = gene_sums[gene_sums == 0].index
+    else:
+        gene_medians = df_Gene.median()
+        percentile = np.percentile(gene_medians,Level)
+        LowCountGene = gene_medians[gene_medians <= percentile].index
+        
     return data_stats, np.array(LowCountGene)
 
 def CleanData (df, Level):
