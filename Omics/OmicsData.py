@@ -352,7 +352,7 @@ def mapClassVar(dfdna, ClassVar):
     ClassVarLvlsEnc.sort()
     ClassVarLvlsIDs = le.inverse_transform(ClassVarLvlsEnc).tolist()
     print("\n***************************************************************")
-    print('Following label encoding has been assigned to the values of {0}.'.format(ClassVar))
+    print('The following label encoding has been assigned to the values of {0}.'.format(ClassVar))
     dictionary = dict(zip(ClassVarLvlsEnc,ClassVarLvlsIDs))
     print(dictionary)
     print("\n***************************************************************")
