@@ -13,7 +13,7 @@ import pandas as pd
 
 #from sklearn.cross_validation import cross_val_score
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.linear_model import RidgeClassifier #, RandomizedLogisticRegression, Ridge, Lasso, LinearRegression
+from sklearn.linear_model import RidgeClassifier, ElasticNet, ElasticNetCV #, RandomizedLogisticRegression, Ridge, Lasso, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, AdaBoostClassifier
 
 from xgboost import XGBClassifier
@@ -100,10 +100,9 @@ for CancerType in allCancerTypes:
     
     ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
     totalsamples = dfAnalysis.shape[0]
-    print('Cancer Type: ' + '\033[1m{:10s}\033[0m'.format(CancerType))
     print('Variable for analysis: ' + '\033[1m{:10s}\033[0m'.format(ClassVar))
-    print('Total samples: ' + '\033[1m{:d}\033[0m'.format(totalsamples))
-    ClassVarLevelsFreqTab
+    print('Total samples: ' + '\033[1m{:d}\033[0m\n'.format(totalsamples))
+    print(ClassVarLevelsFreqTab)
     
     # Keep samples related to Tumor cells only if CancerStatus is not the ClassVar
     if ClassVar != 'CancerStatus':
@@ -165,7 +164,7 @@ for CancerType in allCancerTypes:
     elif med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
         # Look at the list low_tpm_genes, these are the genes which will be removed.
         data_stats, low_tpm_genes = OD.GeneExpression(dfAnalysis_fl,med_tpm_threshold)
-        print('********************************************************************')
+        print('\n********************************************************************')
         if type(med_tpm_threshold) == 'str':
             if med_tpm_threshold == 'zero':
                 print('The following {0} genes are removed because all their' \
@@ -197,41 +196,75 @@ for CancerType in allCancerTypes:
     X, y = OD.fitLogTransform(dfAnalysis_fl_cd,logTransOffset)
     
     
-    print('Performing ranking of the genes.')
+    print('Performing ranking of the genes...\n')
     
     geneNames = dfAnalysis_fl_cd.columns[1:].tolist()
     ranks = {}
     
-    #lr = LinearRegression(normalize=True)
-    #lr.fit(X, y)
-    #ranks['LinearReg'] = OD.Ranks2Dict(np.abs(lr.coef_), geneNames)
-    
-    f, pval  = f_regression(X, y, center=True)
-    ranks['LinearCorr'] = OD.Ranks2Dict(f, geneNames)
-    print('LinearCorr complete.')
-    
-    mine = MINE()
-    mic_scores = []
-    for i in range(X.shape[1]):
-        mine.compute_score(X[:,i], y)
-        m = mine.mic()
-        mic_scores.append(m)
-    ranks['MaxInfoCont'] =  OD.Ranks2Dict(mic_scores, geneNames) 
-    print('MaxInfoCont complete.')
+    # exclude this based on convenience because it's not part of the sklearn
+    # package, making it more difficult to perform ROC AUC calculations
+#    mine = MINE()
+#    mic_scores = []
+#    for i in range(X.shape[1]):
+#        mine.compute_score(X[:,i], y)
+#        m = mine.mic()
+#        mic_scores.append(m)
+#    ranks['MaxInfoCont'] =  OD.Ranks2Dict(mic_scores, geneNames) 
+#    print('- MaxInfoCont complete.')
     
     # for random forest methods, use floor(sqrt(numfeats)) as the number of estimators
     num_est = int(X.shape[1]**0.5)
+        
+    extc = ExtraTreesClassifier(n_estimators=num_est, random_state=RS)
+    extc.fit(X,y)
+    ranks['ExTreeCLF'] = OD.Ranks2Dict(extc.feature_importances_, geneNames)
+    print('- ExTreeCLF complete.')
     
     rfc = RandomForestClassifier(n_estimators=num_est, random_state=RS)
     rfc.fit(X,y)
     ranks['RandomForest'] = OD.Ranks2Dict(rfc.feature_importances_, geneNames)
-    print('RandomForest complete.')
-    
+    print('- RandomForest complete.')
+        
+    AdabCLF = AdaBoostClassifier(n_estimators=num_est)
+    AdabCLF.fit(X,y)
+    ranks['adaBoostCLF'] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
+    print('- AdaBoostCLF complete.')
+        
+    xgb = XGBClassifier()
+    xgb.fit(X, y)
+    ranks['XGBoostCLF'] = OD.Ranks2Dict(xgb.feature_importances_, geneNames)
+    print('- XGBoostCLF complete.')
+        
+    lda =  LinearDiscriminantAnalysis()#(solver='eigen',shrinkage='auto')
+    lda.fit(X, y)
+    ranks['LDA'] = OD.Ranks2Dict(np.abs((lda.coef_.T).T[0]), geneNames)
+    print('- LDA complete.')
+        
     svmSVC = svm.SVC(kernel='linear')
     svmSVC.fit(X,y)
     ranks['SVMlinear'] = OD.Ranks2Dict(np.abs((svmSVC.coef_.T).T[0]), geneNames)
-    print('SVMlinear complete.')
-     
+    print('- SVMlinear complete.')
+    
+#    ridgeCLF = RidgeClassifier()
+#    ridgeCLF.fit(X, y)
+#    ranks['RidgeCLF'] = OD.Ranks2Dict(np.abs((ridgeCLF.coef_.T).T[0]), geneNames)
+#    print('- RidgeCLF complete.')
+    
+    # Instead of using just ridge regression or just lasso regression, we can
+    # use elastic net, which is a combination of the two. We first use
+    # cross-validation to determine the optimal parameter values to use for the
+    # elastic net model, then use the model with those optimal parameters.
+    eNetCV = ElasticNetCV(cv=10, l1_ratio=[0.1, 0.5, 0.7, 0.9, 0.95, 0.99, 1],
+                          random_state=RS, max_iter=5000)
+    eNetCV.fit(X, y)  # Note: this is quite slow, ~10-15 min run time
+    ranks['ElasticNet'] = OD.Ranks2Dict(np.abs(eNetCV.coef_.T), geneNames)
+    print('- ElasticNet complete.')
+    
+
+    
+    
+    # Calculation of individual gene performance (very slow!)
+    
 #        # Computing genes ranking based on their individual performance using the SVM model.
 #        indGeneScores = []
 #        for i in range(X.shape[1]):
@@ -239,18 +272,8 @@ for CancerType in allCancerTypes:
 #                                     cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
 #             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
 #        ranks['SVMlinearindvGenes'] = dict(zip(geneNames, indGeneScores ))
-#        print('SVMlinearindvGenes complete.')
-    
-    xgb = XGBClassifier()
-    xgb.fit(X, y)
-    ranks['XGBoostCLF'] = OD.Ranks2Dict(xgb.feature_importances_, geneNames)
-    print('XGBoostCLF complete.')
-    
-    lda =  LinearDiscriminantAnalysis()#(solver='eigen',shrinkage='auto')
-    lda.fit(X, y)
-    ranks['LDA'] = OD.Ranks2Dict(np.abs((lda.coef_.T).T[0]), geneNames)
-    print('LDA complete.')
-    
+#        print('- SVMlinearindvGenes complete.')
+#    
 #        # Computing genes ranking based on their individual performance using the LDA model.
 #        indGeneScores = []
 #        for i in range(X.shape[1]):
@@ -259,95 +282,73 @@ for CancerType in allCancerTypes:
 #             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
 #        ranks['LDAindvGenes'] = dict(zip(geneNames, indGeneScores ))
 #        print('LDAindvGenes complete.')
-    
-    ridgeCLF = RidgeClassifier()
-    ridgeCLF.fit(X, y)
-    ranks['RidgeCLF'] = OD.Ranks2Dict(np.abs((ridgeCLF.coef_.T).T[0]), geneNames)
-    print('RidgeCLF complete.')
-    
-    # Ridge and RidgeClassifier both provide same ranking as per my observation. So keeping only one.
-    #ridge = Ridge()
-    #ridge.fit(X, y)
-    #ranks['Ridge'] = OD.Ranks2Dict(np.abs(ridge.coef_), geneNames)
-    
-    extc = ExtraTreesClassifier(n_estimators=num_est, random_state=RS)
-    extc.fit(X,y)
-    ranks['ExTreeCLF'] = OD.Ranks2Dict(extc.feature_importances_, geneNames)
-    print('ExTreeCLF complete.')
-    
-    AdabCLF = AdaBoostClassifier(n_estimators=num_est)
-    AdabCLF.fit(X,y)
-    ranks['adaBoostCLF'] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
-    print('AdaBoostCLF complete.')
-    
-    
+
+
+    # calculate average rank for each gene    
     r = {}
     for name in geneNames:
         r[name] = round(np.mean([ranks[method][name] for method in ranks.keys()]), 10)
-     
-    #methods = sorted(ranks.keys())
     ranks['Average'] = r
-    #methods.append('Average')
     
+    
+    # Recursive feature elimination (RFE) methods
+
 #    rfeSVM = RFE(svm.SVC(kernel='linear'), n_features_to_select=1)
 #    rfeSVM.fit(X,y)
 #    ranks['rfeSVM'] = dict(zip(geneNames, rfeSVM.ranking_ ))
-#    print('rfeSVM complete.')
-    #methods.append('SVMrfe')
-    #
-    #rfe = RFE(extc, n_features_to_select=1)
-    #rfe.fit(X,y)
-    #ranks['rfeExtraTree'] = dict(zip(geneNames, rfe.ranking_ ))
-    #methods.append('rfeExtraTree')
-    
+#    print('- rfeSVM complete.')
+#    methods.append('SVMrfe')
+#    
+#    rfeET = RFE(extc, n_features_to_select=1)
+#    rfeET.fit(X,y)
+#    ranks['rfeExtraTree'] = dict(zip(geneNames, rfeET.ranking_ ))
+#    methods.append('rfeExtraTree')
+#    
 #    rfeRFC = RFE(RandomForestClassifier(n_estimators=200, random_state=RS), n_features_to_select=1)
 #    rfeRFC.fit(X,y)
 #    ranks['rfeRFC'] = dict(zip(geneNames, rfeRFC.ranking_ ))#OD.Ranks2Dict(np.array(rfeRFC.ranking_, dtype=float), geneNames)#, order=1)
-#    print('rfeRFC complete.')    
+#    print('- rfeRFC complete.')    
 
+    # organize and sort ranks
     dfRanks = pd.DataFrame.from_dict(ranks)
     dfRanks.reset_index(inplace=True)
     dfRanks.rename(columns={'index':'GeneNames'}, inplace=True)
     dfRanks.sort_values(by='Average', inplace=True, ascending=False)
     
     print('\nDone!\n')
+    print('\n********************************************************************')
     
-    
+    # Run model cross-validation and determine accuracy and ROC AUC
     models = [ExtraTreesClassifier(n_estimators=num_est, random_state=RS), # 0
               RandomForestClassifier(n_estimators=num_est, random_state=RS), # 1
               AdaBoostClassifier(n_estimators=num_est), # 2
               XGBClassifier(), # 3
               LinearDiscriminantAnalysis(), # 4
-              RidgeClassifier(), # 5
-              KNeighborsClassifier(20), # 6
-              svm.SVC(kernel='linear'), # 7  
+              svm.SVC(kernel='linear'), # 5
+              ElasticNet(alpha=eNetCV.alpha_, l1_ratio=eNetCV.l1_ratio_, random_state=RS, max_iter=5000), # 6
              ]
-    # Run models for crossvalidated average score of accuracy
+
     CV = 'Validation: SKF'
     shuffle = True
     scoring = 'accuracy'
     folds = 10
-    #dfCVscores = OD.CVScorer([svm.NuSVC()], CV, X, y, scoring, shuffle)
-    print('Performing models CV analysis using accuracy.')
+
+    print('Performing models CV analysis using accuracy...\n')
     dfCVscores_accuracy = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
-    #dfCVscores = OD.CVScorer([models[i] for i in [3, 6]], CV, X, y, scoring, shuffle)
-    print('Done!')
-    #print('Cancer Type: ', CancerType)
-    #dfCVscores_accuracy
+    print('\nDone!\n')
     
     if len(VarLevelsToKeep) == 2:
         scoring = 'roc_auc'
-        print('Performing models CV analysis using area under the ROC curve.')
+        print('Performing models CV analysis using area under the ROC curve...\n')
         dfCVscores_ROC = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
-        print('Done!')
+        print('\nDone!\n')
     else:
         print('Skipping CV analysis using area under the ROC curve. ' \
               'This is possible for binary problems only.')
     
-    
         
     print('Writing dataset, genees ranking and CV analysis results to a' \
-          'directory named:{0}' \
+          'directory named "{0}"' \
           .format(CancerType))
     os.makedirs(CancerType , exist_ok=True)
 
@@ -356,4 +357,4 @@ for CancerType in allCancerTypes:
     if len(VarLevelsToKeep) == 2:
         dfCVscores_ROC.to_csv(CancerType + '/' + CancerType + '-' + ClassVar + 'CVscoresAreaUnderROC.csv', index=False)
     
-    print('Done!')
+    print('\nDone!\n')
