@@ -17,7 +17,7 @@ from sklearn.manifold import TSNE
 from sklearn.ensemble import IsolationForest
 
 #import matplotlib.pyplot as plt
-#import pandas as pd
+import pandas as pd
 #import itertools as itr
 
 
