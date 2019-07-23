@@ -23,8 +23,9 @@ Thumbs.db
 # h5 data store files
 *.h5
 
-# logfiles
+# log files and result files
 *.log
+*.xlsx
 
 # Windows executable files
 *.exe
