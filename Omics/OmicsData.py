@@ -148,7 +148,9 @@ def prepareDFgeneral(dfAllCancerData):
     df = df[cols]
 
     return df
+
 ###############################################################################
+    
 def prepareDF(dfAllCancerData, ClassVar):
 
     """
@@ -592,11 +594,15 @@ def ROCanalysis(mod_name, CV, classifier, X, y, shuffle, folds=10):
 
 def GeneExpression(df,Level):
     """
-    This function takes in a data frame with only the values of the Gene expression
-    and provides the list of genes whose gene expression values lie in the lower
-    X-percentile (where X = Level) of the population.
-    If Level == 'zero', then genes that have zero expression in all given samples
-    will be returned.
+    This function takes in a data frame with only gene expression values, and
+    provides the list of genes whose median gene expression values are less
+    than Level.
+    
+    If Level ends in '%', then it will return genes whose gene expression
+    values lie in the lower X-percentile (where X = Level) of the population.
+    
+    If Level == 'zero', then genes that have zero expression in all given 
+    samples will be returned.
     """
     df_Gene=df.iloc[:,1:]
     data_stats = pd.DataFrame()
@@ -605,14 +611,19 @@ def GeneExpression(df,Level):
     data_stats['Median'] = list(df_Gene.median())
     data_stats['Mean'] = list(df_Gene.mean())
     
-    if Level == 'zero':
-        # find genes with all zero expression values
-        gene_sums = df_Gene.sum()
-        LowCountGene = gene_sums[gene_sums == 0].index
+    if type(Level) == 'str':
+        if Level == 'zero':
+            # find genes with all zero expression values
+            gene_sums = df_Gene.sum()
+            LowCountGene = gene_sums[gene_sums == 0].index
+        else:
+            Level = float(Level[0:-1])
+            gene_medians = df_Gene.median()
+            percentile = np.percentile(gene_medians,Level)
+            LowCountGene = gene_medians[gene_medians <= percentile].index
     else:
         gene_medians = df_Gene.median()
-        percentile = np.percentile(gene_medians,Level)
-        LowCountGene = gene_medians[gene_medians <= percentile].index
+        LowCountGene = gene_medians[gene_medians < Level].index
         
     return data_stats, np.array(LowCountGene)
 
