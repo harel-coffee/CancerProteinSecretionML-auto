@@ -7,17 +7,15 @@
 #%%
 import Omics.OmicsData as OD
 import os
-#import docx
-
 
 import numpy as np
 import pandas as pd
 
 #from sklearn.cross_validation import cross_val_score
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.linear_model import RidgeClassifier, RandomizedLasso #, RandomizedLogisticRegression,  Ridge, Lasso, LinearRegression
+from sklearn.linear_model import RidgeClassifier, RandomizedLasso #, RandomizedLogisticRegression, Ridge, Lasso, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, AdaBoostClassifier
-#from sklearn.tree  import DecisionTreeClassifier
+
 from xgboost import XGBClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import svm
@@ -34,7 +32,6 @@ RS = 20170628
 #%%
 #==============================================================================
 # Setting Analysis Parameters
-# Copy the values from CancerDataExploration python notebook.
 #==============================================================================
 allCancerTypes = ['TCGA-ACC', 'TCGA-BLCA', 'TCGA-BRCA', 'TCGA-CESC', 'TCGA-CHOL',
                   'TCGA-COAD', 'TCGA-DLBC', 'TCGA-ESCA', 'TCGA-GBM', 'TCGA-HNSC',
@@ -55,20 +52,22 @@ ClassVar = 'TumorStageMerged'
 #VarLevelsToKeep = [True, False]
 VarLevelsToKeep = ['stage i','stage iv']
 
-# specify offset to add to counts before log-transforming (to deal with zeros)
-logTransOffset = 1  # transformed counts = log(counts + offset)
+# specify offset to add to TPM values before log-transforming (to handle zeros)
+logTransOffset = 1  # transformed TPM = log(TPM + offset)
 
 # dimensionality reduction options
 dimReduction = False  # True or False
 dimRedMethod = 'numSigCancers' # 'signifDEgenes' or 'numSigCancers'
 numSigCancers = 10  # Number of cancers in which gene must be significant 
 
-# if dimReduction is false, there is option to remove low-count genes:
+# if dimReduction is false, there is option to remove low-TPM genes by
+# specifying the med_tpm_threshold parameter:
 #  'none' - don't remove any genes.
 #  'zero' - remove genes with all zeros.
-#  'X%' - where X is a number from 0 to 100, removes genes with median expression in the bottom X-percentile of the data.
-#   X - where X is a number, removes genes with median expression below X counts
-medCountThreshold = 'zero'  # genes with median counts in the bottom X-percentile will be removed.
+#  'X%' - where X is a number from 0 to 100, removes genes with median TPM
+#         in the bottom X-percentile.
+#   X - where X is a number, removes genes with median TPM below X
+med_tpm_threshold = 1
 
 
 #%%
@@ -80,8 +79,8 @@ for CancerType in allCancerTypes:
     CancerDataStore = pd.HDFStore('data/CancerDataStore_psn.h5')
     dfCancerType = CancerDataStore.get(CancerType.split('-')[1])
     CancerDataStore.close()
-    #print("Number of samples in the dataset before removing missing values: {0}".format(dfCancerType.shape[0])) 
-    #OD.printNaNs(dfCancerType)
+#    print("Number of samples in the dataset before removing missing values: {0}" \
+#          .format(dfCancerType.shape[0])) 
     print("Cancer Type: " + '\033[1m{:10s}\033[0m'.format(CancerType))
     totalsamples = dfCancerType.shape[0]
     #print("Number of samples in the dataset: {0}".format(totalsamples)) 
@@ -129,7 +128,11 @@ for CancerType in allCancerTypes:
         notReported = sum(ClassVarLevelsFreqTab[ClassVarLevelsFreqTab[ClassVar] == 'not reported']['Frequency'])
         print("\nRemoved {0} samples where '{1}' is 'not reported'.".format(notReported, ClassVar))
         dfAnalysis.drop(dfAnalysis.index[dfAnalysis[ClassVar] == 'not reported'], inplace= True)
-        print("Now, there are " + '\033[1m' + str(dfAnalysis.shape[0]) + '\033[0m' + " samples in the dataset.")#.format(dfAnalysis.shape[0]))
+        print("Now, there are "
+              + '\033[1m'
+              + str(dfAnalysis.shape[0])
+              + '\033[0m'
+              + " samples in the dataset.")#.format(dfAnalysis.shape[0]))
         ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
         ClassVarLevelsFreqTab
         
@@ -168,21 +171,29 @@ for CancerType in allCancerTypes:
             dfAnalysis_fl_cd = dfAnalysis_fl
         else:
             print("Dim reduction cannot be performed because the cancer type '{0}' does not have paired samples.")
-    elif medCountThreshold != 'none': # remove low-count genes if specified, and dim reduction is not requested
-        # Look at the list LowCountGene, these are the genes which will be removed.
-        data_stats, LowCountGene = OD.GeneExpression(dfAnalysis_fl,medCountThreshold)
+    elif med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
+        # Look at the list low_tpm_genes, these are the genes which will be removed.
+        data_stats, low_tpm_genes = OD.GeneExpression(dfAnalysis_fl,med_tpm_threshold)
         print("********************************************************************")
-        if type(medCountThreshold) == 'str':
-            if medCountThreshold == 'zero':
-                print("The following {0} genes are removed because all their expression values in the set are zero:".format(len(LowCountGene)))
+        if type(med_tpm_threshold) == 'str':
+            if med_tpm_threshold == 'zero':
+                print("The following {0} genes are removed because all their" \
+                      "TPM values in the set are zero:" \
+                      .format(len(low_tpm_genes)))
             else:
-                print("The following {0} genes are removed because their median expression values lie in the lower {1} percentile of the entire set:".format(len(LowCountGene),medCountThreshold[0:-1]))
+                print("The following {0} genes are removed because their" \
+                      "median TPM values lie in the lower {1} percentile of" \
+                      "the entire set:" \
+                      .format(len(low_tpm_genes),med_tpm_threshold[0:-1]))
         else:
-            print("The following {0} genes are removed because their median expression values are less than {1}:".format(len(LowCountGene),medCountThreshold))
-        print(LowCountGene)
+            print("The following {0} genes are removed because their median" \
+                  "TPM values are less than {1}:" \
+                  .format(len(low_tpm_genes),med_tpm_threshold))
+        print(low_tpm_genes)
         # Remove low count genes
-        dfAnalysis_fl_cd = OD.CleanData(dfAnalysis_fl,medCountThreshold)
-        print("\nSize of the dataframe after filtering low count genes: {0}".format(dfAnalysis_fl_cd.shape))
+        dfAnalysis_fl_cd = OD.CleanData(dfAnalysis_fl,med_tpm_threshold)
+        print("\nSize of the dataframe after filtering low count genes: {0}" \
+              .format(dfAnalysis_fl_cd.shape))
     else:
         # Don't remove any genes
         print("No genes were removed from the dataset.")
@@ -232,7 +243,8 @@ for CancerType in allCancerTypes:
 #        # Computing genes ranking based on their individual performance using the SVM model.
 #        indGeneScores = []
 #        for i in range(X.shape[1]):
-#             score = cross_val_score(svmSVC, X[:, i:i+1], y, scoring='accuracy', cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
+#             score = cross_val_score(svmSVC, X[:, i:i+1], y, scoring='accuracy',
+#                                     cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
 #             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
 #        ranks["SVMlinearindvGenes"] = dict(zip(geneNames, indGeneScores ))
 #        print("SVMlinearindvGenes complete.")
@@ -250,7 +262,8 @@ for CancerType in allCancerTypes:
 #        # Computing genes ranking based on their individual performance using the LDA model.
 #        indGeneScores = []
 #        for i in range(X.shape[1]):
-#             score = cross_val_score(lda, X[:, i:i+1], y, scoring='accuracy', cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
+#             score = cross_val_score(lda, X[:, i:i+1], y, scoring='accuracy',
+#                                     cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
 #             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
 #        ranks["LDAindvGenes"] = dict(zip(geneNames, indGeneScores ))
 #        print("LDAindvGenes complete.")
@@ -312,8 +325,7 @@ for CancerType in allCancerTypes:
     print("\nDone!\n")
     
     
-    models = [#DecisionTreeClassifier(random_state=RS), # 
-              ExtraTreesClassifier(n_estimators=num_est, random_state=RS), # 0
+    models = [ExtraTreesClassifier(n_estimators=num_est, random_state=RS), # 0
               RandomForestClassifier(n_estimators=num_est, random_state=RS), # 1
               AdaBoostClassifier(n_estimators=num_est), # 2
               XGBClassifier(), # 3
@@ -342,11 +354,14 @@ for CancerType in allCancerTypes:
         dfCVscoresROC = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
         print("Done!")
     else:
-        print("Skipping CV analysis using area under the ROC curve. This is possible for binary problems only.")
+        print("Skipping CV analysis using area under the ROC curve. " \
+              "This is possible for binary problems only.")
     
     
         
-    print("Writing dataset, genees ranking and CV analysis results to a directory named:{0}".format(CancerType))
+    print("Writing dataset, genees ranking and CV analysis results to a" \
+          "directory named:{0}" \
+          .format(CancerType))
     os.makedirs(CancerType , exist_ok=True)
     
     ClassVarName = ClassVar.split(sep='_')[1]
