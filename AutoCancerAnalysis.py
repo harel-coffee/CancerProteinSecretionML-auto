@@ -31,8 +31,10 @@ RS = 20170628
 
 #%%
 #==============================================================================
-# Setting Analysis Parameters
+# Analysis Parameters
 #==============================================================================
+
+# all available cancer types
 allCancerTypes = ['TCGA-ACC', 'TCGA-BLCA', 'TCGA-BRCA', 'TCGA-CESC', 'TCGA-CHOL',
                   'TCGA-COAD', 'TCGA-DLBC', 'TCGA-ESCA', 'TCGA-GBM', 'TCGA-HNSC',
                   'TCGA-KICH', 'TCGA-KIRC', 'TCGA-KIRP', 'TCGA-LGG', 'TCGA-LIHC',
@@ -193,16 +195,16 @@ for CancerType in allCancerTypes:
                   'TPM values are less than {1}:' \
                   .format(len(low_tpm_genes),med_tpm_threshold))
         print(low_tpm_genes)
-        # Remove low count genes
+        # Remove low-TPM genes
         dfAnalysis_fl_cd = OD.CleanData(dfAnalysis_fl,med_tpm_threshold)
-        print('\nSize of the dataframe after filtering low count genes: {0}' \
+        print('\nSize of the dataframe after filtering low-TPM genes: {0}' \
               .format(dfAnalysis_fl_cd.shape))
     else:
         # Don't remove any genes
         print('No genes were removed from the dataset.')
         dfAnalysis_fl_cd = dfAnalysis_fl
     
-    # Perform label encoding for the ClassVar and scale data using log transform
+    # Perform label encoding for the ClassVar and log-transform data
     dfAnalysis_fl_cd, ClassVarEncOrder = OD.mapClassVar(dfAnalysis_fl_cd,ClassVar)
     X, y = OD.fitLogTransform(dfAnalysis_fl_cd,logTransOffset)
     
