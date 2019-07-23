@@ -79,11 +79,11 @@ for CancerType in allCancerTypes:
     CancerDataStore = pd.HDFStore('data/CancerDataStore_psn.h5')
     dfCancerType = CancerDataStore.get(CancerType.split('-')[1])
     CancerDataStore.close()
-#    print("Number of samples in the dataset before removing missing values: {0}" \
+#    print('Number of samples in the dataset before removing missing values: {0}' \
 #          .format(dfCancerType.shape[0])) 
-    print("Cancer Type: " + '\033[1m{:10s}\033[0m'.format(CancerType))
+    print('Cancer Type: ' + '\033[1m{:10s}\033[0m'.format(CancerType))
     totalsamples = dfCancerType.shape[0]
-    #print("Number of samples in the dataset: {0}".format(totalsamples)) 
+    #print('Number of samples in the dataset: {0}'.format(totalsamples)) 
     
     # get list of all class variables available, and narrow to mutation variables
     colnames = list(dfCancerType)
@@ -98,27 +98,28 @@ for CancerType in allCancerTypes:
     dfCancerType = OD.dropNaNs(dfCancerType,ClassVar)
     
     if totalsamples > dfCancerType.shape[0]:
-        print("Number of samples in the dataset after removing missing values: {0}".format(dfCancerType.shape[0]))
+        print('Number of samples in the dataset after removing missing values: {0}' \
+              .format(dfCancerType.shape[0]))
     
     dfAnalysis = dfCancerType.copy()
     #ClassVar = 'CancerStatus'
     ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
     totalsamples = dfAnalysis.shape[0]
-    print("Cancer Type: " + '\033[1m{:10s}\033[0m'.format(CancerType))
-    print("Variable for analysis: " + '\033[1m{:10s}\033[0m'.format(ClassVar))
-    print("Total samples: " + '\033[1m{:d}\033[0m'.format(totalsamples))
+    print('Cancer Type: ' + '\033[1m{:10s}\033[0m'.format(CancerType))
+    print('Variable for analysis: ' + '\033[1m{:10s}\033[0m'.format(ClassVar))
+    print('Total samples: ' + '\033[1m{:d}\033[0m'.format(totalsamples))
     ClassVarLevelsFreqTab
-    #print("{:_<17} : {:5d}".format('Total samples',ClassVarLevelsFreqTab.Frequency.sum()))
+    #print('{:_<17} : {:5d}'.format('Total samples',ClassVarLevelsFreqTab.Frequency.sum()))
     
     # Keep samples related to Tumor cells only if CancerStatus is not the class var. 
     if ClassVar != 'CancerStatus':
         toKeep = ['Primary solid Tumor']
-#            print("\nKeeping samples concerning 'Primary solid Tumor' only.")
+#            print('\nKeeping samples concerning "Primary solid Tumor" only.')
         dfAnalysis = OD.FilterLevels(dfAnalysis, 'CancerStatus', toKeep, printStats='no')
     
     # if previous if has been True, we need to print updated stats    
     if totalsamples > dfAnalysis.shape[0]:
-#            print("Updated, number of samples in the dataset:" + '\033[1m{:d}\033[0m'.format(dfAnalysis.shape[0])) 
+#            print('Updated, number of samples in the dataset:' + '\033[1m{:d}\033[0m'.format(dfAnalysis.shape[0])) 
         ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
         ClassVarLevelsFreqTab
         
@@ -126,17 +127,17 @@ for CancerType in allCancerTypes:
     # and print the updated stats and also update the dataset.
     if 'not reported' in ClassVarLevelsSorted:
         notReported = sum(ClassVarLevelsFreqTab[ClassVarLevelsFreqTab[ClassVar] == 'not reported']['Frequency'])
-        print("\nRemoved {0} samples where '{1}' is 'not reported'.".format(notReported, ClassVar))
+        print('\nRemoved {0} samples where "{1}" is "not reported".'.format(notReported, ClassVar))
         dfAnalysis.drop(dfAnalysis.index[dfAnalysis[ClassVar] == 'not reported'], inplace= True)
-        print("Now, there are "
+        print('Now, there are '
               + '\033[1m'
               + str(dfAnalysis.shape[0])
               + '\033[0m'
-              + " samples in the dataset.")#.format(dfAnalysis.shape[0]))
+              + ' samples in the dataset.')#.format(dfAnalysis.shape[0]))
         ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
         ClassVarLevelsFreqTab
         
-#        print("\nVarLevelsToKeep = {0}".format(ClassVarLevelsSorted))
+#        print('\nVarLevelsToKeep = {0}'.format(ClassVarLevelsSorted))
     
     # Keep samples only for the values in VarLevelsToKeep while samples corresponding to the rest are filtered out.
     dfAnalysis_fl = OD.FilterLevels(dfAnalysis, ClassVar, VarLevelsToKeep, printStats='no')
@@ -151,52 +152,54 @@ for CancerType in allCancerTypes:
 #    if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < 2)):
 #        continue
     
-    #print("Finally, number of samples in the dataset:" + '\033[1m{:d}\033[0m'.format(dfAnalysis_fl.shape[0])) 
+    #print('Finally, number of samples in the dataset:' + '\033[1m{:d}\033[0m'.format(dfAnalysis_fl.shape[0])) 
     dfAnalysis_fl = OD.prepareDF(dfAnalysis_fl, ClassVar)
     
-    #print("Size of the dataframe: {0}".format(dfAnalysis_fl.shape))
+    #print('Size of the dataframe: {0}'.format(dfAnalysis_fl.shape))
     
     if dimReduction: # step into dim reduction if dimReduction is set to True
-        signifDEgenes = pd.read_excel("PSN_genes_signifDE.xlsx")
+        signifDEgenes = pd.read_excel('PSN_genes_signifDE.xlsx')
         signifDECancerTypes = signifDEgenes.columns[3:].tolist()
         signifDECancerTypes = [s.split('_')[1] for s in signifDECancerTypes]
         if CancerType.split('-')[1] in signifDECancerTypes: # Make sure that the selected cancer type exists
             if dimRedMethod == 'numSigCancers':
-                signifDEgenes = signifDEgenes.loc[signifDEgenes["num sig cancers"]>=numSigCancers, "gene name"].tolist()
+                signifDEgenes = signifDEgenes.loc[signifDEgenes['num sig cancers']>=numSigCancers, 'gene name'].tolist()
             elif dimRedMethod == 'signifDEgenes':
-                signifDEgenes = signifDEgenes.loc[signifDEgenes["Padj_" + CancerType.split('-')[1]]<=0.01, "gene name"].tolist()
+                signifDEgenes = signifDEgenes.loc[signifDEgenes['Padj_' + CancerType.split('-')[1]]<=0.01, 'gene name'].tolist()
             signifDEgenes.insert(0,ClassVar)
             dfAnalysis_fl = dfAnalysis_fl[signifDEgenes]
-            print("Size of the dataframe after filtering signifDEgenes: {0}".format(dfAnalysis_fl.shape))
+            print('Size of the dataframe after filtering signifDEgenes: {0}'.format(dfAnalysis_fl.shape))
             dfAnalysis_fl_cd = dfAnalysis_fl
         else:
-            print("Dim reduction cannot be performed because the cancer type '{0}' does not have paired samples.")
+            print('Dim reduction cannot be performed because the cancer type' \
+                  '"{0}" does not have paired samples.' \
+                  .format(CancerType))
     elif med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
         # Look at the list low_tpm_genes, these are the genes which will be removed.
         data_stats, low_tpm_genes = OD.GeneExpression(dfAnalysis_fl,med_tpm_threshold)
-        print("********************************************************************")
+        print('********************************************************************')
         if type(med_tpm_threshold) == 'str':
             if med_tpm_threshold == 'zero':
-                print("The following {0} genes are removed because all their" \
-                      "TPM values in the set are zero:" \
+                print('The following {0} genes are removed because all their' \
+                      'TPM values in the set are zero:' \
                       .format(len(low_tpm_genes)))
             else:
-                print("The following {0} genes are removed because their" \
-                      "median TPM values lie in the lower {1} percentile of" \
-                      "the entire set:" \
+                print('The following {0} genes are removed because their' \
+                      'median TPM values lie in the lower {1} percentile of' \
+                      'the entire set:' \
                       .format(len(low_tpm_genes),med_tpm_threshold[0:-1]))
         else:
-            print("The following {0} genes are removed because their median" \
-                  "TPM values are less than {1}:" \
+            print('The following {0} genes are removed because their median' \
+                  'TPM values are less than {1}:' \
                   .format(len(low_tpm_genes),med_tpm_threshold))
         print(low_tpm_genes)
         # Remove low count genes
         dfAnalysis_fl_cd = OD.CleanData(dfAnalysis_fl,med_tpm_threshold)
-        print("\nSize of the dataframe after filtering low count genes: {0}" \
+        print('\nSize of the dataframe after filtering low count genes: {0}' \
               .format(dfAnalysis_fl_cd.shape))
     else:
         # Don't remove any genes
-        print("No genes were removed from the dataset.")
+        print('No genes were removed from the dataset.')
         dfAnalysis_fl_cd = dfAnalysis_fl
     
     # Perform label encoding for the ClassVar and scale data using log transform
@@ -205,18 +208,18 @@ for CancerType in allCancerTypes:
     
     
     
-    print("Performing ranking of the genes.")
+    print('Performing ranking of the genes.')
     
     geneNames = dfAnalysis_fl_cd.columns[1:].tolist()
     ranks = {}
     
     #lr = LinearRegression(normalize=True)
     #lr.fit(X, y)
-    #ranks["LinearReg"] = OD.Ranks2Dict(np.abs(lr.coef_), geneNames)
+    #ranks['LinearReg'] = OD.Ranks2Dict(np.abs(lr.coef_), geneNames)
     
     f, pval  = f_regression(X, y, center=True)
-    ranks["LinearCorr"] = OD.Ranks2Dict(f, geneNames)
-    print("LinearCorr complete.")
+    ranks['LinearCorr'] = OD.Ranks2Dict(f, geneNames)
+    print('LinearCorr complete.')
     
     mine = MINE()
     mic_scores = []
@@ -224,21 +227,21 @@ for CancerType in allCancerTypes:
         mine.compute_score(X[:,i], y)
         m = mine.mic()
         mic_scores.append(m)
-    ranks["MaxInfoCont"] =  OD.Ranks2Dict(mic_scores, geneNames) 
-    print("MaxInfoCont complete.")
+    ranks['MaxInfoCont'] =  OD.Ranks2Dict(mic_scores, geneNames) 
+    print('MaxInfoCont complete.')
     
     # for random forest methods, use floor(sqrt(numfeats)) as the number of estimators
     num_est = int(X.shape[1]**0.5)
     
     rfc = RandomForestClassifier(n_estimators=num_est, random_state=RS) 
     rfc.fit(X,y)
-    ranks["RandomForest"] = OD.Ranks2Dict(rfc.feature_importances_, geneNames)
-    print("RandomForest complete.")
+    ranks['RandomForest'] = OD.Ranks2Dict(rfc.feature_importances_, geneNames)
+    print('RandomForest complete.')
     
     svmSVC = svm.SVC(kernel='linear')
     svmSVC.fit(X,y)
-    ranks["SVMlinear"] = OD.Ranks2Dict(np.abs((svmSVC.coef_.T).T[0]), geneNames)
-    print("SVMlinear complete.")
+    ranks['SVMlinear'] = OD.Ranks2Dict(np.abs((svmSVC.coef_.T).T[0]), geneNames)
+    print('SVMlinear complete.')
      
 #        # Computing genes ranking based on their individual performance using the SVM model.
 #        indGeneScores = []
@@ -246,18 +249,18 @@ for CancerType in allCancerTypes:
 #             score = cross_val_score(svmSVC, X[:, i:i+1], y, scoring='accuracy',
 #                                     cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
 #             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
-#        ranks["SVMlinearindvGenes"] = dict(zip(geneNames, indGeneScores ))
-#        print("SVMlinearindvGenes complete.")
+#        ranks['SVMlinearindvGenes'] = dict(zip(geneNames, indGeneScores ))
+#        print('SVMlinearindvGenes complete.')
     
     xgb = XGBClassifier()
     xgb.fit(X, y)
-    ranks["XGBoostCLF"] = OD.Ranks2Dict(xgb.feature_importances_, geneNames)
-    print("XGBoostCLF complete.")
+    ranks['XGBoostCLF'] = OD.Ranks2Dict(xgb.feature_importances_, geneNames)
+    print('XGBoostCLF complete.')
     
     lda =  LinearDiscriminantAnalysis()#(solver='eigen',shrinkage='auto')
     lda.fit(X, y)
-    ranks["LDA"] = OD.Ranks2Dict(np.abs((lda.coef_.T).T[0]), geneNames)
-    print("LDA complete.")
+    ranks['LDA'] = OD.Ranks2Dict(np.abs((lda.coef_.T).T[0]), geneNames)
+    print('LDA complete.')
     
 #        # Computing genes ranking based on their individual performance using the LDA model.
 #        indGeneScores = []
@@ -265,64 +268,64 @@ for CancerType in allCancerTypes:
 #             score = cross_val_score(lda, X[:, i:i+1], y, scoring='accuracy',
 #                                     cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
 #             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
-#        ranks["LDAindvGenes"] = dict(zip(geneNames, indGeneScores ))
-#        print("LDAindvGenes complete.")
+#        ranks['LDAindvGenes'] = dict(zip(geneNames, indGeneScores ))
+#        print('LDAindvGenes complete.')
     
     ridgeCLF = RidgeClassifier()
     ridgeCLF.fit(X, y)
-    ranks["RidgeCLF"] = OD.Ranks2Dict(np.abs((ridgeCLF.coef_.T).T[0]), geneNames)
-    print("RidgeCLF complete.")
+    ranks['RidgeCLF'] = OD.Ranks2Dict(np.abs((ridgeCLF.coef_.T).T[0]), geneNames)
+    print('RidgeCLF complete.')
     
     # Ridge and RidgeClassifier both provide same ranking as per my observation. So keeping only one.
     #ridge = Ridge()
     #ridge.fit(X, y)
-    #ranks["Ridge"] = OD.Ranks2Dict(np.abs(ridge.coef_), geneNames)
+    #ranks['Ridge'] = OD.Ranks2Dict(np.abs(ridge.coef_), geneNames)
     
     extc = ExtraTreesClassifier(n_estimators=num_est, random_state=RS)
     extc.fit(X,y)
-    ranks["ExTreeCLF"] = OD.Ranks2Dict(extc.feature_importances_, geneNames)
-    print("ExTreeCLF complete.")
+    ranks['ExTreeCLF'] = OD.Ranks2Dict(extc.feature_importances_, geneNames)
+    print('ExTreeCLF complete.')
     
     AdabCLF = AdaBoostClassifier(n_estimators=num_est)
     AdabCLF.fit(X,y)
-    ranks["adaBoostCLF"] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
-    print("AdaBoostCLF complete.")
+    ranks['adaBoostCLF'] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
+    print('AdaBoostCLF complete.')
     
     rlasso = RandomizedLasso(alpha='bic')
     rlasso.fit(X, y)
-    ranks["StabilityRandLasso"] = OD.Ranks2Dict(np.abs(rlasso.scores_), geneNames)
-    print("StabilityRandLasso complete.")
+    ranks['StabilityRandLasso'] = OD.Ranks2Dict(np.abs(rlasso.scores_), geneNames)
+    print('StabilityRandLasso complete.')
     
     r = {}
     for name in geneNames:
         r[name] = round(np.mean([ranks[method][name] for method in ranks.keys()]), 10)
      
     #methods = sorted(ranks.keys())
-    ranks["Average"] = r
-    #methods.append("Average")
+    ranks['Average'] = r
+    #methods.append('Average')
     
 #    rfeSVM = RFE(svm.SVC(kernel='linear'), n_features_to_select=1)
 #    rfeSVM.fit(X,y)
-#    ranks["rfeSVM"] = dict(zip(geneNames, rfeSVM.ranking_ ))
-#    print("rfeSVM complete.")
-    #methods.append("SVMrfe")
+#    ranks['rfeSVM'] = dict(zip(geneNames, rfeSVM.ranking_ ))
+#    print('rfeSVM complete.')
+    #methods.append('SVMrfe')
     #
     #rfe = RFE(extc, n_features_to_select=1)
     #rfe.fit(X,y)
-    #ranks["rfeExtraTree"] = dict(zip(geneNames, rfe.ranking_ ))
-    #methods.append("rfeExtraTree")
+    #ranks['rfeExtraTree'] = dict(zip(geneNames, rfe.ranking_ ))
+    #methods.append('rfeExtraTree')
     
 #    rfeRFC = RFE(RandomForestClassifier(n_estimators=200, random_state=RS), n_features_to_select=1)
 #    rfeRFC.fit(X,y)
-#    ranks["rfeRFC"] = dict(zip(geneNames, rfeRFC.ranking_ ))#OD.Ranks2Dict(np.array(rfeRFC.ranking_, dtype=float), geneNames)#, order=1)
-#    print("rfeRFC complete.")    
+#    ranks['rfeRFC'] = dict(zip(geneNames, rfeRFC.ranking_ ))#OD.Ranks2Dict(np.array(rfeRFC.ranking_, dtype=float), geneNames)#, order=1)
+#    print('rfeRFC complete.')    
 
     dfRanks = pd.DataFrame.from_dict(ranks)
     dfRanks.reset_index(inplace=True)
     dfRanks.rename(columns={'index':'GeneNames'}, inplace=True)
     dfRanks.sort_values(by='Average', inplace=True, ascending=False)
     
-    print("\nDone!\n")
+    print('\nDone!\n')
     
     
     models = [ExtraTreesClassifier(n_estimators=num_est, random_state=RS), # 0
@@ -341,26 +344,26 @@ for CancerType in allCancerTypes:
     scoring = 'accuracy'
     folds = 10
     #dfCVscores = OD.CVScorer([svm.NuSVC()], CV, X, y, scoring, shuffle)
-    print("Performing models CV analysis using accuracy.")
+    print('Performing models CV analysis using accuracy.')
     dfCVscoresAUC = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
     #dfCVscores = OD.CVScorer([models[i] for i in [3, 6]], CV, X, y, scoring, shuffle)
-    print("Done!")
-    #print("Cancer Type: ", CancerType)
+    print('Done!')
+    #print('Cancer Type: ', CancerType)
     #dfCVscoresAUC
     
     if len(VarLevelsToKeep) == 2:
         scoring = 'roc_auc'
-        print("Performing models CV analysis using area under the ROC curve.")
+        print('Performing models CV analysis using area under the ROC curve.')
         dfCVscoresROC = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
-        print("Done!")
+        print('Done!')
     else:
-        print("Skipping CV analysis using area under the ROC curve. " \
-              "This is possible for binary problems only.")
+        print('Skipping CV analysis using area under the ROC curve. ' \
+              'This is possible for binary problems only.')
     
     
         
-    print("Writing dataset, genees ranking and CV analysis results to a" \
-          "directory named:{0}" \
+    print('Writing dataset, genees ranking and CV analysis results to a' \
+          'directory named:{0}' \
           .format(CancerType))
     os.makedirs(CancerType , exist_ok=True)
     
@@ -381,4 +384,4 @@ for CancerType in allCancerTypes:
     dfCVscoresAUC.to_csv(CancerType + '/' + CancerType + '-' + ClassVarName + 'CVscoresAccuracy.csv', index=False)
 #        dfAnalysis_fl_cd.to_csv(CancerType + '/' + CancerType + '-' + ClassVarName + 'Data.csv', index=False)
     
-    print("Done!")
+    print('Done!')
