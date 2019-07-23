@@ -14,6 +14,9 @@ Thumbs.db
 *.ipynb_checkpoints
 *.zip
 
+# jupyter notebook files
+*.ipynb
+
 # csv files
 *.csv
 
