@@ -47,16 +47,16 @@ allCancerTypes = ['TCGA-ACC', 'TCGA-BLCA', 'TCGA-BRCA', 'TCGA-CESC', 'TCGA-CHOL'
 # ClassVar options: 'CancerStatus','TumorStage','TumorStageMerged','TumorStageBinary',
 #                   'OverallSurvival','Race','Gender','Barcode','Mutations',
 #                   'HyperMut','HyperMutBinary'
-ClassVar = 'HyperMutBinary'
+ClassVar = 'TumorStageMerged'
 
 # Select which levels of the class variable to keep.
-VarLevelsToKeep = ['Low','Hypermutant']
+#VarLevelsToKeep = ['Low','Hypermutant']
 #VarLevelsToKeep = ['Primary solid Tumor','Solid Tissue Normal']
 #VarLevelsToKeep = [True, False]
-#VarLevelsToKeep = ['stage i-iii','stage iv']
+VarLevelsToKeep = ['stage i','stage iv']
 
 # specify offset to add to counts before log-transforming (to deal with zeros)
-logTransOffset = 0.01  # transformed counts = log(counts + offset)
+logTransOffset = 1  # transformed counts = log(counts + offset)
 
 # dimensionality reduction options
 dimReduction = False  # True or False
@@ -88,7 +88,7 @@ for CancerType in allCancerTypes:
     
     # get list of all class variables available, and narrow to mutation variables
     colnames = list(dfCancerType)
-#    all_mutClassVars = [s for s in colnames if 'ClassVar_mut' in s]
+#    all_mutClassVars = [s for s in colnames if 'mut' == s[0:3]]
     
 #    for ClassVar in all_mutClassVars:
     #check if the combination of CancerType and ClassVar have already been analyzed
