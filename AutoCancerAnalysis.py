@@ -76,8 +76,8 @@ medCountThreshold = 'zero'  # genes with median counts in the bottom X-percentil
 
 for CancerType in allCancerTypes:
     
-    #CancerType = 'TCGA-LIHC'
-    CancerDataStore = pd.HDFStore('data/CancerDataStore_met.h5')
+    #CancerType = 'TCGA-COAD'
+    CancerDataStore = pd.HDFStore('data/CancerDataStore_psn.h5')
     dfCancerType = CancerDataStore.get(CancerType.split('-')[1])
     CancerDataStore.close()
     #print("Number of samples in the dataset before removing missing values: {0}".format(dfCancerType.shape[0])) 
@@ -216,7 +216,10 @@ for CancerType in allCancerTypes:
     ranks["MaxInfoCont"] =  OD.Ranks2Dict(mic_scores, geneNames) 
     print("MaxInfoCont complete.")
     
-    rfc = RandomForestClassifier(n_estimators=200, random_state=RS) 
+    # for random forest methods, use floor(sqrt(numfeats)) as the number of estimators
+    num_est = int(X.shape[1]**0.5)
+    
+    rfc = RandomForestClassifier(n_estimators=num_est, random_state=RS) 
     rfc.fit(X,y)
     ranks["RandomForest"] = OD.Ranks2Dict(rfc.feature_importances_, geneNames)
     print("RandomForest complete.")
@@ -262,14 +265,15 @@ for CancerType in allCancerTypes:
     #ridge.fit(X, y)
     #ranks["Ridge"] = OD.Ranks2Dict(np.abs(ridge.coef_), geneNames)
     
-    extc = ExtraTreesClassifier(n_estimators=200, random_state=RS)
+    extc = ExtraTreesClassifier(n_estimators=num_est, random_state=RS)
     extc.fit(X,y)
     ranks["ExTreeCLF"] = OD.Ranks2Dict(extc.feature_importances_, geneNames)
     print("ExTreeCLF complete.")
     
-    #AdabCLF = AdaBoostClassifier(n_estimators=200)
-    #AdabCLF.fit(X,y)
-    #ranks["adaBoostCLF"] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
+    AdabCLF = AdaBoostClassifier(n_estimators=num_est)
+    AdabCLF.fit(X,y)
+    ranks["adaBoostCLF"] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
+    print("AdaBoostCLF complete.")
     
     rlasso = RandomizedLasso(alpha='bic')
     rlasso.fit(X, y)
@@ -284,10 +288,10 @@ for CancerType in allCancerTypes:
     ranks["Average"] = r
     #methods.append("Average")
     
-    rfeSVM = RFE(svm.SVC(kernel='linear'), n_features_to_select=1)
-    rfeSVM.fit(X,y)
-    ranks["rfeSVM"] = dict(zip(geneNames, rfeSVM.ranking_ ))
-    print("rfeSVM complete.")
+#    rfeSVM = RFE(svm.SVC(kernel='linear'), n_features_to_select=1)
+#    rfeSVM.fit(X,y)
+#    ranks["rfeSVM"] = dict(zip(geneNames, rfeSVM.ranking_ ))
+#    print("rfeSVM complete.")
     #methods.append("SVMrfe")
     #
     #rfe = RFE(extc, n_features_to_select=1)
@@ -309,15 +313,15 @@ for CancerType in allCancerTypes:
     
     
     models = [#DecisionTreeClassifier(random_state=RS), # 
-              ExtraTreesClassifier(n_estimators=200, random_state=RS), # 0
-              RandomForestClassifier(n_estimators=200, random_state=RS), # 1
-              AdaBoostClassifier(n_estimators=200), # 2
+              ExtraTreesClassifier(n_estimators=num_est, random_state=RS), # 0
+              RandomForestClassifier(n_estimators=num_est, random_state=RS), # 1
+              AdaBoostClassifier(n_estimators=num_est), # 2
               XGBClassifier(), # 3
               LinearDiscriminantAnalysis(), # 4
               RidgeClassifier(), # 5
               KNeighborsClassifier(20), # 6
               svm.SVC(kernel='linear'), # 7
-              svm.SVC(kernel='rbf', C=5) # 8  
+              #svm.SVC(kernel='rbf', C=5) # 8  
              ]
     # Run models for crossvalidated average score of accuracy
     CV = 'Validation: SKF'
