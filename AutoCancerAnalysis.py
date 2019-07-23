@@ -13,7 +13,7 @@ import pandas as pd
 
 #from sklearn.cross_validation import cross_val_score
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.linear_model import RidgeClassifier, RandomizedLasso #, RandomizedLogisticRegression, Ridge, Lasso, LinearRegression
+from sklearn.linear_model import RidgeClassifier #, RandomizedLogisticRegression, Ridge, Lasso, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, AdaBoostClassifier
 
 from xgboost import XGBClassifier
@@ -293,10 +293,6 @@ for CancerType in allCancerTypes:
     ranks['adaBoostCLF'] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
     print('AdaBoostCLF complete.')
     
-    rlasso = RandomizedLasso(alpha='bic')
-    rlasso.fit(X, y)
-    ranks['StabilityRandLasso'] = OD.Ranks2Dict(np.abs(rlasso.scores_), geneNames)
-    print('StabilityRandLasso complete.')
     
     r = {}
     for name in geneNames:
