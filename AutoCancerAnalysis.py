@@ -66,8 +66,9 @@ numSigCancers = 10  # Number of cancers in which gene must be significant
 # if dimReduction is false, there is option to remove low-count genes:
 #  'none' - don't remove any genes.
 #  'zero' - remove genes with all zeros.
-#   X - where X is a number from 0 to 100, removes genes with median expression in the bottom X-percentile of the data.
-remPercentile = 'zero'  # genes with median counts in the bottom X-percentile will be removed.
+#  'X%' - where X is a number from 0 to 100, removes genes with median expression in the bottom X-percentile of the data.
+#   X - where X is a number, removes genes with median expression below X counts
+medCountThreshold = 'zero'  # genes with median counts in the bottom X-percentile will be removed.
 
 
 #%%
@@ -167,17 +168,20 @@ for CancerType in allCancerTypes:
             dfAnalysis_fl_cd = dfAnalysis_fl
         else:
             print("Dim reduction cannot be performed because the cancer type '{0}' does not have paired samples.")
-    elif remPercentile != 'none': # remove low-count genes if specified, and dim reduction is not requested
+    elif medCountThreshold != 'none': # remove low-count genes if specified, and dim reduction is not requested
         # Look at the list LowCountGene, these are the genes which will be removed.
-        data_stats, LowCountGene = OD.GeneExpression(dfAnalysis_fl,remPercentile)
+        data_stats, LowCountGene = OD.GeneExpression(dfAnalysis_fl,medCountThreshold)
         print("********************************************************************")
-        if remPercentile == 'zero':
-            print("The following {0} genes are removed because all their expression values in the set are zero:".format(len(LowCountGene)))
+        if type(medCountThreshold) == 'str':
+            if medCountThreshold == 'zero':
+                print("The following {0} genes are removed because all their expression values in the set are zero:".format(len(LowCountGene)))
+            else:
+                print("The following {0} genes are removed because their median expression values lie in the lower {1} percentile of the entire set:".format(len(LowCountGene),medCountThreshold[0:-1]))
         else:
-            print("The following {0} genes are removed because their median expression values lie in the lower {1} percentile of the entire set:".format(len(LowCountGene),remPercentile))
+            print("The following {0} genes are removed because their median expression values are less than {1}:".format(len(LowCountGene),medCountThreshold))
         print(LowCountGene)
         # Remove low count genes
-        dfAnalysis_fl_cd = OD.CleanData(dfAnalysis_fl,remPercentile)
+        dfAnalysis_fl_cd = OD.CleanData(dfAnalysis_fl,medCountThreshold)
         print("\nSize of the dataframe after filtering low count genes: {0}".format(dfAnalysis_fl_cd.shape))
     else:
         # Don't remove any genes
@@ -187,6 +191,7 @@ for CancerType in allCancerTypes:
     # Perform label encoding for the ClassVar and scale data using log transform
     dfAnalysis_fl_cd, ClassVarEncOrder = OD.mapClassVar(dfAnalysis_fl_cd,ClassVar)
     X, y = OD.fitLogTransform(dfAnalysis_fl_cd,logTransOffset)
+    
     
     
     print("Performing ranking of the genes.")
