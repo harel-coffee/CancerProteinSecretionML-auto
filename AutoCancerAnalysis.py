@@ -251,7 +251,7 @@ for CancerType in allCancerTypes:
     # Run a logistic regression using Elastic Net regularization. Run a CV
     # analysis to determine optimal values of the l1_ratio and C parameters.
     logReg = LogisticRegressionCV(cv=10, penalty='elasticnet', scoring='roc_auc',
-                                  solver='saga', max_iter=2000, random_state=RS,
+                                  solver='saga', max_iter=5000, random_state=RS,
                                   l1_ratios=[0.1, 0.5, 0.7, 0.9, 0.95, 0.99, 1],
                                   n_jobs=-1) # use all CPU cores
     with warnings.catch_warnings():
@@ -324,7 +324,7 @@ for CancerType in allCancerTypes:
               svm.SVC(kernel='linear'), # 5
               LogisticRegression(penalty='elasticnet', C=logReg.C_[0],
                                  l1_ratio=logReg.l1_ratio_[0], solver='saga',
-                                 max_iter=2000, random_state=RS)  # 6
+                                 max_iter=5000, random_state=RS)  # 6
              ]
 
     CV = 'Validation: SKF'
