@@ -4,10 +4,7 @@
 Created on Mon Mar 20 09:50:10 2017
 
 @author: azams
-Updated by Jonathan L. Robinson, 2018-01-30
-    - Generalized to use data beyond PSN transcriptomics.
-    - Removed/commented older code no longer relevant or used.
-    
+Updated by Jonathan Robinson
 
 code to autoreload 
 %load_ext autoreload
@@ -24,7 +21,7 @@ import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-import math as mt
+#import math as mt
 from scipy import interp
 from sklearn.metrics import roc_curve, auc
 from itertools import cycle
