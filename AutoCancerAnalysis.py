@@ -7,22 +7,22 @@
 #%%
 import Omics.OmicsData as OD
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
 
 #from sklearn.cross_validation import cross_val_score
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.linear_model import RidgeClassifier, ElasticNet, ElasticNetCV #, RandomizedLogisticRegression, Ridge, Lasso, LinearRegression
+#from sklearn.linear_model import RidgeClassifier, ElasticNet, ElasticNetCV #, Ridge, Lasso, LinearRegression
+from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, AdaBoostClassifier
 
 from xgboost import XGBClassifier
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn import svm
-from sklearn.feature_selection import f_regression #, RFE, VarianceThreshold
+#from sklearn.feature_selection import f_regression #, RFE, VarianceThreshold
 #from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 
-from minepy import MINE
 RS = 20170628
 
 #%%
@@ -138,8 +138,11 @@ for CancerType in allCancerTypes:
     
     # check if there are at least 10 (or 10%, whichever is higher) of samples in each class
 #    if ((ClassVarLevelsFreqTab['Frequency'].min() < max(10,dfAnalysis.shape[0]/10)) or (ClassVarLevelsFreqTab.shape[0] < 2)):
-#    if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < 2)):
 #        continue
+
+    # check if there are at least 10 samples in each class, and at least 2 classes
+    if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < 2)):
+        continue
     
     dfAnalysis_fl = OD.prepareDF(dfAnalysis_fl, ClassVar)
     
@@ -235,33 +238,27 @@ for CancerType in allCancerTypes:
     ranks['XGBoostCLF'] = OD.Ranks2Dict(xgb.feature_importances_, geneNames)
     print('- XGBoostCLF complete.')
         
-    lda =  LinearDiscriminantAnalysis()#(solver='eigen',shrinkage='auto')
+    lda =  LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto')
     lda.fit(X, y)
-    ranks['LDA'] = OD.Ranks2Dict(np.abs((lda.coef_.T).T[0]), geneNames)
+    ranks['LDA'] = OD.Ranks2Dict(np.abs(lda.coef_[0]), geneNames)
     print('- LDA complete.')
         
     svmSVC = svm.SVC(kernel='linear')
     svmSVC.fit(X,y)
-    ranks['SVMlinear'] = OD.Ranks2Dict(np.abs((svmSVC.coef_.T).T[0]), geneNames)
+    ranks['SVMlinear'] = OD.Ranks2Dict(np.abs(svmSVC.coef_[0]), geneNames)
     print('- SVMlinear complete.')
     
-#    ridgeCLF = RidgeClassifier()
-#    ridgeCLF.fit(X, y)
-#    ranks['RidgeCLF'] = OD.Ranks2Dict(np.abs((ridgeCLF.coef_.T).T[0]), geneNames)
-#    print('- RidgeCLF complete.')
-    
-    # Instead of using just ridge regression or just lasso regression, we can
-    # use elastic net, which is a combination of the two. We first use
-    # cross-validation to determine the optimal parameter values to use for the
-    # elastic net model, then use the model with those optimal parameters.
-    eNetCV = ElasticNetCV(cv=10, l1_ratio=[0.1, 0.5, 0.7, 0.9, 0.95, 0.99, 1],
-                          random_state=RS, max_iter=5000)
-    eNetCV.fit(X, y)  # Note: this is quite slow, ~10-15 min run time
-    ranks['ElasticNet'] = OD.Ranks2Dict(np.abs(eNetCV.coef_.T), geneNames)
-    print('- ElasticNet complete.')
-    
-
-    
+    # Run a logistic regression using Elastic Net regularization. Run a CV
+    # analysis to determine optimal values of the l1_ratio and C parameters.
+    logReg = LogisticRegressionCV(cv=10, penalty='elasticnet', scoring='roc_auc',
+                                  solver='saga', max_iter=1000, random_state=RS,
+                                  l1_ratios=[0.1, 0.5, 0.7, 0.9, 0.95, 0.99, 1],
+                                  n_jobs=-1) # use all CPU cores
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # ignore the convergence warnings
+        logReg.fit(X, y)  # Note: this is quite slow, ~15 min run time
+    ranks['logisticReg'] = OD.Ranks2Dict(np.abs(logReg.coef_[0]), geneNames)
+    print('- logisticReg complete.')
     
     # Calculation of individual gene performance (very slow!)
     
@@ -325,7 +322,9 @@ for CancerType in allCancerTypes:
               XGBClassifier(), # 3
               LinearDiscriminantAnalysis(), # 4
               svm.SVC(kernel='linear'), # 5
-              ElasticNet(alpha=eNetCV.alpha_, l1_ratio=eNetCV.l1_ratio_, random_state=RS, max_iter=5000), # 6
+              LogisticRegression(penalty='elasticnet', C=logReg.C_[0],
+                                 l1_ratio=logReg.l1_ratio_[0], solver='saga',
+                                 max_iter=1000, random_state=RS)  # 6
              ]
 
     CV = 'Validation: SKF'
@@ -334,13 +333,17 @@ for CancerType in allCancerTypes:
     folds = 10
 
     print('Performing models CV analysis using accuracy...\n')
-    dfCVscores_accuracy = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # ignore the convergence warnings
+        dfCVscores_accuracy = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
     print('\nDone!\n')
     
     if len(VarLevelsToKeep) == 2:
         scoring = 'roc_auc'
         print('Performing models CV analysis using area under the ROC curve...\n')
-        dfCVscores_ROC = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # ignore the convergence warnings
+            dfCVscores_ROC = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
         print('\nDone!\n')
     else:
         print('Skipping CV analysis using area under the ROC curve. ' \
