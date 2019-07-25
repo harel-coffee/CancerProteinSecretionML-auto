@@ -20,6 +20,9 @@ Thumbs.db
 # csv files
 *.csv
 
+# R data file
+*.rds
+
 # h5 data store files
 *.h5
 
