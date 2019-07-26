@@ -20,6 +20,9 @@ Thumbs.db
 # csv files
 *.csv
 
+# anything in the results/ subdirectory
+/results
+
 # R data file
 *.rds
 
