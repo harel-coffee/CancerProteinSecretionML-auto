@@ -351,9 +351,9 @@ for CancerType in allCancerTypes:
           .format(CancerType))
     os.makedirs(CancerType , exist_ok=True)
 
-    dfRanks.to_csv(CancerType + '/' + CancerType + '-' + ClassVar + 'GenesRanking.csv', index=False)    
-    dfCVscores_accuracy.to_csv(CancerType + '/' + CancerType + '-' + ClassVar + 'CVscoresAccuracy.csv', index=False)
+    dfRanks.to_csv('results/' + CancerType + '/' + CancerType + '_' + ClassVar + '_GenesRanking.csv', index=False)    
+    dfCVscores_accuracy.to_csv('results/' + CancerType + '/' + CancerType + '_' + ClassVar + '_CVscores_Accuracy.csv', index=False)
     if len(VarLevelsToKeep) == 2:
-        dfCVscores_ROC.to_csv(CancerType + '/' + CancerType + '-' + ClassVar + 'CVscoresAreaUnderROC.csv', index=False)
+        dfCVscores_ROC.to_csv('results/' + CancerType + '/' + CancerType + '_' + ClassVar + '_CVscores_ROCAUC.csv', index=False)
     
     print('\nDone!\n')
