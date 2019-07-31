@@ -197,8 +197,8 @@ for CancerType in allCancerTypes:
         dfAnalysis_fl_cd = dfAnalysis_fl
     
     # Perform label encoding for the ClassVar and log-transform data
-    dfAnalysis_fl_cd, ClassVarEncOrder = OD.mapClassVar(dfAnalysis_fl_cd,ClassVar)
-    X, y = OD.fitLogTransform(dfAnalysis_fl_cd,logTransOffset)
+    dfAnalysis_fl_cd = OD.mapClassVar(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep)
+    X, y = OD.fitLogTransform(dfAnalysis_fl_cd, logTransOffset)
     
     
     print('Performing ranking of the genes...\n')

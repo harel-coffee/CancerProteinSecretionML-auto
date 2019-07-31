@@ -331,7 +331,7 @@ def returnVarLevels(df, var):
 ###############################################################################
 
 ###############################################################################
-def mapClassVar(dfdna, ClassVar):
+def mapClassVar(dfdna, ClassVar, varLevels):
 
     """
     Pass it a dataframe, dfdna, after removing NaNs using dropNaNs(df), 
@@ -342,19 +342,16 @@ def mapClassVar(dfdna, ClassVar):
     iv) print the mapping. 
     """
     
-    le = LabelEncoder()
     df_le = dfdna.copy()
-    df_le[ClassVar] = le.fit_transform(df_le[ClassVar])
-    ClassVarLvlsEnc = df_le[ClassVar].unique().tolist()
-    ClassVarLvlsEnc.sort()
-    ClassVarLvlsIDs = le.inverse_transform(ClassVarLvlsEnc).tolist()
+    df_le[ClassVar] = [varLevels.index(x) for x in df_le[ClassVar]]
+
     print("\n***************************************************************")
     print('The following label encoding has been assigned to the values of {0}.'.format(ClassVar))
-    dictionary = dict(zip(ClassVarLvlsEnc,ClassVarLvlsIDs))
+    dictionary = dict(zip(np.arange(0, len(varLevels)), varLevels))
     print(dictionary)
     print("\n***************************************************************")
-#    printClassVarValCounts(df, ClassVar)
-    return df_le, ClassVarLvlsIDs
+
+    return df_le
 ###############################################################################
 
 ############################################################################### 
