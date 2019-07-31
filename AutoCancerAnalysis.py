@@ -40,13 +40,14 @@ allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
 # ClassVar options: 'CancerStatus','TumorStage','TumorStageMerged','TumorStageBinary',
 #                   'OverallSurvival','Race','Gender','Barcode','Mutations',
 #                   'HyperMut','HyperMutBinary'
-ClassVar = 'CancerStatus'
+ClassVar = 'TumorStageBinary'
 
 # Select which levels of the class variable to keep.
-#VarLevelsToKeep = ['Low','Hypermutant']
-VarLevelsToKeep = ['Primary solid Tumor','Solid Tissue Normal']
-#VarLevelsToKeep = [True, False]
-#VarLevelsToKeep = ['stage i','stage iv']
+# VarLevelsToKeep = ['Low','Hypermutant']
+#VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']
+# VarLevelsToKeep = [True, False]
+# VarLevelsToKeep = ['stage i','stage ii']
+VarLevelsToKeep = ['stage i-iii','stage iv']
 
 # specify offset to add to TPM values before log-transforming (to handle zeros)
 logTransOffset = 1  # transformed TPM = log(TPM + offset)
@@ -54,7 +55,7 @@ logTransOffset = 1  # transformed TPM = log(TPM + offset)
 # dimensionality reduction options
 dimReduction = False  # True or False
 
-# if dimReduction is True, the following two variables are not used:
+# if dimReduction is False, the following two variables are NOT used:
 dimRedMethod = 'numSigCancers' # 'signifDEgenes' or 'numSigCancers'
 numSigCancers = 10  # Number of cancers in which gene must be significant 
 
@@ -113,6 +114,7 @@ for CancerType in allCancerTypes:
     # print updated stats if ClassVar was not CancerStatus
     if totalsamples > dfAnalysis.shape[0]:
 #            print('Updated, number of samples in the dataset:' + '\033[1m{:d}\033[0m'.format(dfAnalysis.shape[0])) 
+        print('\nRemoved {0} samples where CancerStatus was not "Primary solid Tumor".'.format(totalsamples - dfAnalysis.shape[0]))
         ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
         ClassVarLevelsFreqTab
         
@@ -204,49 +206,40 @@ for CancerType in allCancerTypes:
     geneNames = dfAnalysis_fl_cd.columns[1:].tolist()
     ranks = {}
     
-    # exclude this based on convenience because it's not part of the sklearn
-    # package, making it more difficult to perform ROC AUC calculations
-#    mine = MINE()
-#    mic_scores = []
-#    for i in range(X.shape[1]):
-#        mine.compute_score(X[:,i], y)
-#        m = mine.mic()
-#        mic_scores.append(m)
-#    ranks['MaxInfoCont'] =  OD.Ranks2Dict(mic_scores, geneNames) 
-#    print('- MaxInfoCont complete.')
     
     # for random forest methods, use floor(sqrt(numfeats)) as the number of estimators
     num_est = int(X.shape[1]**0.5)
         
+    
     extc = ExtraTreesClassifier(n_estimators=num_est, random_state=RS)
     extc.fit(X,y)
-    ranks['ExTreeCLF'] = OD.Ranks2Dict(extc.feature_importances_, geneNames)
-    print('- ExTreeCLF complete.')
+    ranks['ExtraTreesClassifier'] = OD.Ranks2Dict(extc.feature_importances_, geneNames)
+    print('- ExtraTreesClassifier complete.')
     
     rfc = RandomForestClassifier(n_estimators=num_est, random_state=RS)
     rfc.fit(X,y)
-    ranks['RandomForest'] = OD.Ranks2Dict(rfc.feature_importances_, geneNames)
-    print('- RandomForest complete.')
+    ranks['RandomForestClassifier'] = OD.Ranks2Dict(rfc.feature_importances_, geneNames)
+    print('- RandomForestClassifier complete.')
         
     AdabCLF = AdaBoostClassifier(n_estimators=num_est)
     AdabCLF.fit(X,y)
-    ranks['adaBoostCLF'] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
-    print('- AdaBoostCLF complete.')
+    ranks['AdaBoostClassifier'] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
+    print('- AdaBoostClassifier complete.')
         
     xgb = XGBClassifier()
     xgb.fit(X, y)
-    ranks['XGBoostCLF'] = OD.Ranks2Dict(xgb.feature_importances_, geneNames)
-    print('- XGBoostCLF complete.')
+    ranks['XGBClassifier'] = OD.Ranks2Dict(xgb.feature_importances_, geneNames)
+    print('- XGBClassifier complete.')
         
     lda =  LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto')
     lda.fit(X, y)
-    ranks['LDA'] = OD.Ranks2Dict(np.abs(lda.coef_[0]), geneNames)
-    print('- LDA complete.')
+    ranks['LinearDiscriminantAnalysis'] = OD.Ranks2Dict(np.abs(lda.coef_[0]), geneNames)
+    print('- LinearDiscriminantAnalysis complete.')
         
     svmSVC = svm.SVC(kernel='linear')
     svmSVC.fit(X,y)
-    ranks['SVMlinear'] = OD.Ranks2Dict(np.abs(svmSVC.coef_[0]), geneNames)
-    print('- SVMlinear complete.')
+    ranks['SVC'] = OD.Ranks2Dict(np.abs(svmSVC.coef_[0]), geneNames)
+    print('- SVC complete.')
     
     # Run a logistic regression using Elastic Net regularization. Run a CV
     # analysis to determine optimal values of the l1_ratio and C parameters.
@@ -257,8 +250,8 @@ for CancerType in allCancerTypes:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # ignore the convergence warnings
         logReg.fit(X, y)  # Note: this is quite slow, ~15 min run time
-    ranks['logisticReg'] = OD.Ranks2Dict(np.abs(logReg.coef_[0]), geneNames)
-    print('- logisticReg complete.')
+    ranks['LogisticRegression'] = OD.Ranks2Dict(np.abs(logReg.coef_[0]), geneNames)
+    print('- LogisticRegression complete.')
     
     # Calculation of individual gene performance (very slow!)
     
@@ -346,14 +339,23 @@ for CancerType in allCancerTypes:
               'This is possible for binary problems only.')
     
         
-    print('Writing dataset, genees ranking and CV analysis results to a' \
-          'directory named "{0}"' \
-          .format(CancerType))
-    os.makedirs(CancerType , exist_ok=True)
+    print('Writing dataset, genees ranking and CV analysis results to a ' \
+          'directory named "{0}"'.format(CancerType))
+    parent_dir_name = 'results/'
+    os.makedirs(parent_dir_name + CancerType , exist_ok=True)
 
-    dfRanks.to_csv('results/' + CancerType + '/' + CancerType + '_' + ClassVar + '_GenesRanking.csv', index=False)    
-    dfCVscores_accuracy.to_csv('results/' + CancerType + '/' + CancerType + '_' + ClassVar + '_CVscores_Accuracy.csv', index=False)
+    if ClassVar in ['TumorStage', 'TumorStageMerged', 'TumorStageBinary']:
+        file_name_piece = '_'.join(['TumorStage'] + VarLevelsToKeep)
+        file_name_piece = file_name_piece.replace(' ','')
+    else:
+        file_name_piece = ClassVar
+
+    dfRanks.to_csv(parent_dir_name + CancerType + '/' + CancerType + '_' \
+                   + file_name_piece + '_GenesRanking.csv', index=False)    
+    dfCVscores_accuracy.to_csv(parent_dir_name + CancerType + '/' + CancerType \
+                               + '_' + file_name_piece + '_CVscores_Accuracy.csv', index=False)
     if len(VarLevelsToKeep) == 2:
-        dfCVscores_ROC.to_csv('results/' + CancerType + '/' + CancerType + '_' + ClassVar + '_CVscores_ROCAUC.csv', index=False)
+        dfCVscores_ROC.to_csv(parent_dir_name + CancerType + '/' + CancerType \
+                              + '_' + file_name_piece + '_CVscores_ROCAUC.csv', index=False)
     
     print('\nDone!\n')
