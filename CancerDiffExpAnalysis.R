@@ -21,11 +21,11 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   #
   #
   # Jonathan Robinson, 2019-07-26
-  
-  
+
   library(edgeR)
   library(SummarizedExperiment)
-  
+  setwd("~/Documents/PostDoc/CancerOmicsDataExploration")
+    
   # Load annotation data
   annotData <- readRDS('/Users/jonrob/Documents/PostDoc/CancerOmicsDataExploration/data/allcancerdata_psn.rds')
   
@@ -49,6 +49,10 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   if (is.null(classVar)) {
     message('Returning list of available class variables.')
     return(allClassVars)
+  } else if (!(classVar == 'CancerStatus')) {
+    # if CancerStatus is not the class variable, only include Primary solid Tumor samples
+    keepSamples <- annotData$CancerStatus == 'Primary solid Tumor'
+    annotData <- annotData[keepSamples, ]
   } else if (!any(allClassVars == classVar)) {
     stop('"', classVar, '" is not a valid class variable.')
   }
@@ -125,8 +129,14 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
     res.table$FDR[is.na(res.table$FDR)] <- 1
     
     # export results
-    res.filename <- paste('results/', cType, '/', paste(cType, classVar, 'DEresults.txt', sep='_'), sep='')
-    write.table(res.table, file=res.filename, quote=F, sep='\t')
+    if (classVar %in% c('TumorStage', 'TumorStageMerged', 'TumorStageBinary')) {
+      file_name_piece <- paste(cType, 'TumorStage', classVarLevels[1], classVarLevels[2], 'DEresults.txt', sep='_')
+      file_name_piece <- gsub(' ', '', file_name_piece)  # remove spaces
+    } else {
+      file_name_piece <- paste(cType, classVar, 'DEresults.txt', sep='_')
+    }
+    res.filename <- paste('results/', cType, '/', file_name_piece, sep='')
+    write.table(res.table, file=res.filename, quote=F, sep='\t', row.names=F)
     
   }
     
