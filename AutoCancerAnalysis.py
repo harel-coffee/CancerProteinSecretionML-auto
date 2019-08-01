@@ -40,14 +40,14 @@ allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
 # ClassVar options: 'CancerStatus','TumorStage','TumorStageMerged','TumorStageBinary',
 #                   'OverallSurvival','Race','Gender','Barcode','Mutations',
 #                   'HyperMut','HyperMutBinary'
-ClassVar = 'TumorStageBinary'
+ClassVar = 'Mutations'
 
 # Select which levels of the class variable to keep.
 # VarLevelsToKeep = ['Low','Hypermutant']
 #VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']
-# VarLevelsToKeep = [True, False]
-# VarLevelsToKeep = ['stage i','stage ii']
-VarLevelsToKeep = ['stage i-iii','stage iv']
+VarLevelsToKeep = [False, True]
+#VarLevelsToKeep = ['stage i','stage iii']
+# VarLevelsToKeep = ['stage i-iii','stage iv']
 
 # specify offset to add to TPM values before log-transforming (to handle zeros)
 logTransOffset = 1  # transformed TPM = log(TPM + offset)
@@ -68,38 +68,27 @@ numSigCancers = 10  # Number of cancers in which gene must be significant
 #   X - where X is a number, removes genes with median TPM below X
 med_tpm_threshold = 1
 
+
+
 #%%
-# Loop through each cancer type, performing the analysis on each type
-for CancerType in allCancerTypes:
+def filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep):
+    """
+    Remove NaNs and "not reported" values from dataset.
+    In addition, if ClassVar is not "CancerStatus", then only keep "Primary 
+    solid Tumor" samples in the dataset.
+    """
     
-#    CancerType = 'COAD'
-    
-    CancerDataStore = pd.HDFStore('data/CancerDataStore_psn.h5')
-    dfCancerType = CancerDataStore.get(CancerType)
-    CancerDataStore.close()
-#    print('Number of samples in the dataset before removing missing values: {0}' \
-#          .format(dfCancerType.shape[0])) 
-    print('Cancer Type: ' + '\033[1m{:10s}\033[0m'.format(CancerType))
     totalsamples = dfCancerType.shape[0]
-    
-    colnames = list(dfCancerType)  # get list of all class variables available
-#    all_mutClassVars = [s for s in colnames if 'mut' == s[0:3]]  # extract mutation variables
-    
-#    for ClassVar in all_mutClassVars:
-    #check if the combination of CancerType and ClassVar have already been analyzed
-#    if (CancerType) in os.listdir():
-#        if any([True for x in os.listdir(os.getcwd() + '/' + CancerType) if ClassVar.split(sep='_')[1] + 'CVscores' in x]):
-#            continue
-        
-    dfCancerType = OD.dropNaNs(dfCancerType,ClassVar)
-    
+
+    dfCancerType = OD.dropNaNs(dfCancerType, ClassVar)    
+
     if totalsamples > dfCancerType.shape[0]:
         print('Number of samples in the dataset after removing missing values: {0}' \
               .format(dfCancerType.shape[0]))
     
     dfAnalysis = dfCancerType.copy()
     
-    ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
+    ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis, ClassVar)
     totalsamples = dfAnalysis.shape[0]
     print('Variable for analysis: ' + '\033[1m{:10s}\033[0m'.format(ClassVar))
     print('Total samples: ' + '\033[1m{:d}\033[0m\n'.format(totalsamples))
@@ -138,15 +127,17 @@ for CancerType in allCancerTypes:
     ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis_fl,ClassVar)
     print(ClassVarLevelsFreqTab)
     
-    # check if there are at least 10 (or 10%, whichever is higher) of samples in each class
-#    if ((ClassVarLevelsFreqTab['Frequency'].min() < max(10,dfAnalysis.shape[0]/10)) or (ClassVarLevelsFreqTab.shape[0] < 2)):
-#        continue
-
-    # check if there are at least 10 samples in each class, and at least 2 classes
-    if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < 2)):
-        continue
-    
     dfAnalysis_fl = OD.prepareDF(dfAnalysis_fl, ClassVar)
+
+    return dfAnalysis_fl, ClassVarLevelsFreqTab
+
+
+
+#%%
+def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_tpm_threshold):
+    """
+    Remove genes from dataset according to specified parameters.
+    """
     
     if dimReduction: # step into dim reduction if dimReduction is set to True
         signifDEgenes = pd.read_excel('PSN_genes_signifDE.xlsx')
@@ -183,11 +174,11 @@ for CancerType in allCancerTypes:
         else:
             print('The following {0} genes are removed because their median' \
                   'TPM values are less than {1}:' \
-                  .format(len(low_tpm_genes),med_tpm_threshold))
+                  .format(len(low_tpm_genes), med_tpm_threshold))
         print(low_tpm_genes)
         
         # Remove low-TPM genes
-        dfAnalysis_fl_cd = OD.CleanData(dfAnalysis_fl,med_tpm_threshold)
+        dfAnalysis_fl_cd = OD.CleanData(dfAnalysis_fl, med_tpm_threshold)
         print('\nSize of the dataframe after filtering low-TPM genes: {0}' \
               .format(dfAnalysis_fl_cd.shape))
         
@@ -196,10 +187,21 @@ for CancerType in allCancerTypes:
         print('No genes were removed from the dataset.')
         dfAnalysis_fl_cd = dfAnalysis_fl
     
+    return dfAnalysis_fl_cd
+
+
+
+#%%
+def performGeneRanking(dfAnalysis_fl_cd, ClassVar, varLevelsToKeep):
+    """
+    Fit classification models, rank genes (features) based on feature 
+    importance scores, and perform a cross-fold validation analysis to assess
+    the accuracy and ROC AUC of each model.
+    """
+    
     # Perform label encoding for the ClassVar and log-transform data
     dfAnalysis_fl_cd = OD.mapClassVar(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep)
-    X, y = OD.fitLogTransform(dfAnalysis_fl_cd, logTransOffset)
-    
+    X, y = OD.fitLogTransform(dfAnalysis_fl_cd, logTransOffset)    
     
     print('Performing ranking of the genes...\n')
     
@@ -244,9 +246,8 @@ for CancerType in allCancerTypes:
     # Run a logistic regression using Elastic Net regularization. Run a CV
     # analysis to determine optimal values of the l1_ratio and C parameters.
     logReg = LogisticRegressionCV(cv=10, penalty='elasticnet', scoring='roc_auc',
-                                  solver='saga', max_iter=1000, random_state=RS,
-                                  l1_ratios=[0.1, 0.5, 0.7, 0.9, 0.95, 0.99, 1],
-                                  n_jobs=-1) # use all CPU cores
+                                  solver='saga', random_state=RS, n_jobs=-1,
+                                  l1_ratios=[0.1, 0.5, 0.7, 0.9, 0.95, 0.99, 1])
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # ignore the convergence warnings
         logReg.fit(X, y)  # Note: this is quite slow, ~15 min run time
@@ -308,6 +309,7 @@ for CancerType in allCancerTypes:
     print('\nDone!\n')
     print('\n********************************************************************')
     
+    
     # Run model cross-validation and determine accuracy and ROC AUC
     models = [ExtraTreesClassifier(n_estimators=num_est, random_state=RS), # 0
               RandomForestClassifier(n_estimators=num_est, random_state=RS), # 1
@@ -317,7 +319,7 @@ for CancerType in allCancerTypes:
               svm.SVC(kernel='linear'), # 5
               LogisticRegression(penalty='elasticnet', C=logReg.C_[0],
                                  l1_ratio=logReg.l1_ratio_[0], solver='saga',
-                                 max_iter=1000, random_state=RS)  # 6
+                                 random_state=RS)  # 6
              ]
 
     CV = 'Validation: SKF'
@@ -338,10 +340,21 @@ for CancerType in allCancerTypes:
         print('Skipping CV analysis using area under the ROC curve. ' \
               'This is possible for binary problems only.')
     
-        
+    return dfRanks, dfCVscores_accuracy, dfCVscores_ROC
+
+
+
+#%%
+def writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, VarLevelsToKeep):
+    """
+    Export gene ranks and model scores (accuracy and ROC AUC) to .csv files
+    """
+
+    parent_dir_name = 'results/'
+    
     print('Writing dataset, genees ranking and CV analysis results to a ' \
           'directory named "{0}"'.format(CancerType))
-    parent_dir_name = 'results/'
+    
     os.makedirs(parent_dir_name + CancerType , exist_ok=True)
 
     if ClassVar in ['TumorStage', 'TumorStageMerged', 'TumorStageBinary']:
@@ -359,3 +372,68 @@ for CancerType in allCancerTypes:
                               + '_' + file_name_piece + '_CVscores_ROCAUC.csv', index=False)
     
     print('\nDone!\n')
+
+
+
+#%%
+    
+    
+# Loop through each cancer type, performing the analysis on each type
+for CancerType in allCancerTypes:
+    
+#    CancerType = 'COAD'
+    
+    CancerDataStore = pd.HDFStore('data/CancerDataStore_psn.h5')
+    dfCancerType = CancerDataStore.get(CancerType)
+    CancerDataStore.close()
+
+    print('Cancer Type: ' + '\033[1m{:10s}\033[0m'.format(CancerType))
+    
+    colnames = list(dfCancerType)  # get list of all class variables available
+
+    if ClassVar == 'Mutations':
+        all_mutClassVars = [s for s in colnames if 'mut' == s[0:3]]  # extract mutation variables
+        for ClassVar in all_mutClassVars:                        
+            if (CancerType) in os.listdir('results'):
+                if any([True for x in os.listdir(os.getcwd() + '/results/' + CancerType) if ClassVar + '_GenesRanking' in x]):
+                    print('Already analyzed; skipping.')
+                    continue
+            # filter samples from data
+            dfAnalysis_fl, ClassVarLevelsFreqTab = filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep)
+            
+            # check if there are at least 10 samples in each class, and at least 2 classes
+            if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < 2)):
+                print('Insufficient samples to perform analysis; skipping.')
+                continue
+            
+            # filter genes from data
+            dfAnalysis_fl_cd = filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_tpm_threshold)
+            
+            # fit models, rank genes, and perform cross-validation
+            dfRanks, dfCVscores_accuracy, dfCVscores_ROC = performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep)
+            
+            # write results to file
+            writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, VarLevelsToKeep)
+            
+    else: 
+        # filter samples from data
+        dfAnalysis_fl, ClassVarLevelsFreqTab = filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep)
+        
+        
+        # check if there are at least 10 samples in each class, and at least 2 classes
+        if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < 2)):
+            print('Insufficient samples to perform analysis; skipping.')
+            continue
+        
+        # filter genes from data
+        dfAnalysis_fl_cd = filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_tpm_threshold)
+        
+        # fit models, rank genes, and perform cross-validation
+        dfRanks, dfCVscores_accuracy, dfCVscores_ROC = performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep)
+        
+        # write results to file
+        writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, VarLevelsToKeep)
+        
+        
+    
+    
