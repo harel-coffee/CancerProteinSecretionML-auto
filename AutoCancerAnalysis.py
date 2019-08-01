@@ -40,12 +40,12 @@ allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
 # ClassVar options: 'CancerStatus','TumorStage','TumorStageMerged','TumorStageBinary',
 #                   'OverallSurvival','Race','Gender','Barcode','Mutations',
 #                   'HyperMut','HyperMutBinary'
-ClassVar = 'Mutations'
+ClassVar = 'mutTP53'
 
 # Select which levels of the class variable to keep.
 # VarLevelsToKeep = ['Low','Hypermutant']
 #VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']
-VarLevelsToKeep = [False, True]
+VarLevelsToKeep = ['FALSE', 'TRUE']
 #VarLevelsToKeep = ['stage i','stage iii']
 # VarLevelsToKeep = ['stage i-iii','stage iv']
 
@@ -118,13 +118,13 @@ def filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep):
               + str(dfAnalysis.shape[0])
               + '\033[0m'
               + ' samples in the dataset.')#.format(dfAnalysis.shape[0]))
-        ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
+        ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis, ClassVar)
         ClassVarLevelsFreqTab
     
     # Keep samples only for the values in VarLevelsToKeep while samples corresponding to the rest are filtered out.
     dfAnalysis_fl = OD.FilterLevels(dfAnalysis, ClassVar, VarLevelsToKeep, printStats='no')
     
-    ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis_fl,ClassVar)
+    ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis_fl, ClassVar)
     print(ClassVarLevelsFreqTab)
     
     dfAnalysis_fl = OD.prepareDF(dfAnalysis_fl, ClassVar)
@@ -416,6 +416,12 @@ for CancerType in allCancerTypes:
             writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, VarLevelsToKeep)
             
     else: 
+        
+        if (CancerType) in os.listdir('results'):
+                if any([True for x in os.listdir(os.getcwd() + '/results/' + CancerType) if ClassVar + '_GenesRanking' in x]):
+                    print('Already analyzed; skipping.')
+                    continue
+        
         # filter samples from data
         dfAnalysis_fl, ClassVarLevelsFreqTab = filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep)
         
