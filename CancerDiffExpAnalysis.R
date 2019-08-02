@@ -94,6 +94,11 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
     geneNames <- rowData(data)$external_gene_name
     rm(data)  # no longer need this variable
     
+    # # remove non-PSP genes
+    # keepGenes <- geneNames %in% pspGenes
+    # count_data <- count_data[keepGenes, ]
+    # geneNames <- geneNames[keepGenes]
+    
     # create DGEList object from count_data
     y <- DGEList(counts=count_data)
     
