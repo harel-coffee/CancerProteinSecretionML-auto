@@ -40,7 +40,7 @@ allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
 # ClassVar options: 'CancerStatus','TumorStage','TumorStageMerged','TumorStageBinary',
 #                   'OverallSurvival','Race','Gender','Barcode','Mutations',
 #                   'HyperMut','HyperMutBinary'
-ClassVar = 'mutTP53'
+ClassVar = 'Mutations'
 
 # Select which levels of the class variable to keep.
 # VarLevelsToKeep = ['Low','Hypermutant']
@@ -345,7 +345,7 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, varLevelsToKeep):
 
 
 #%%
-def writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, VarLevelsToKeep):
+def writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, ClassVar, VarLevelsToKeep):
     """
     Export gene ranks and model scores (accuracy and ROC AUC) to .csv files
     """
@@ -393,13 +393,13 @@ for CancerType in allCancerTypes:
 
     if ClassVar == 'Mutations':
         all_mutClassVars = [s for s in colnames if 'mut' == s[0:3]]  # extract mutation variables
-        for ClassVar in all_mutClassVars:                        
+        for mutClassVar in all_mutClassVars:                        
             if (CancerType) in os.listdir('results'):
-                if any([True for x in os.listdir(os.getcwd() + '/results/' + CancerType) if ClassVar + '_GenesRanking' in x]):
+                if any([True for x in os.listdir(os.getcwd() + '/results/' + CancerType) if mutClassVar + '_GenesRanking' in x]):
                     print('Already analyzed; skipping.')
                     continue
             # filter samples from data
-            dfAnalysis_fl, ClassVarLevelsFreqTab = filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep)
+            dfAnalysis_fl, ClassVarLevelsFreqTab = filterSamplesFromData(dfCancerType, mutClassVar, VarLevelsToKeep)
             
             # check if there are at least 10 samples in each class, and at least 2 classes
             if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < 2)):
@@ -407,13 +407,13 @@ for CancerType in allCancerTypes:
                 continue
             
             # filter genes from data
-            dfAnalysis_fl_cd = filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_tpm_threshold)
+            dfAnalysis_fl_cd = filterGenesFromData(dfAnalysis_fl, CancerType, mutClassVar, dimReduction, med_tpm_threshold)
             
             # fit models, rank genes, and perform cross-validation
-            dfRanks, dfCVscores_accuracy, dfCVscores_ROC = performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep)
+            dfRanks, dfCVscores_accuracy, dfCVscores_ROC = performGeneRanking(dfAnalysis_fl_cd, mutClassVar, VarLevelsToKeep)
             
             # write results to file
-            writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, VarLevelsToKeep)
+            writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, mutClassVar, VarLevelsToKeep)
             
     else: 
         
@@ -438,7 +438,7 @@ for CancerType in allCancerTypes:
         dfRanks, dfCVscores_accuracy, dfCVscores_ROC = performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep)
         
         # write results to file
-        writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, VarLevelsToKeep)
+        writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, ClassVar, VarLevelsToKeep)
         
         
     
