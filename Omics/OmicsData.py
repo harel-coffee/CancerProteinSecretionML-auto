@@ -476,7 +476,7 @@ def CVScorer(models, CV, X, y, scoring, shuffle, folds=10):
     dfCVscores = pd.DataFrame(columns=['Model', 'Scoring', 'Score', 'CI-lower', 'CI-high'])    
     for model in models:
         modelName = str(model).partition('(')[0]
-        scores = cross_val_score(model, X, y, scoring=scoring, cv=cv) #, n_jobs=-1) this was causing problem for LDA and RidgeClassifier
+        scores = cross_val_score(model, X, y, scoring=scoring, cv=cv, n_jobs=-1)
         dfCVscores = dfCVscores.append(pd.Series([modelName, scoring, scores.mean(),(scores.mean() - 2*scores.std()), (scores.mean() + 2*scores.std())],
                                                  index=dfCVscores.columns), ignore_index=True)
         #print("{3} [-/+]: {0:.2f} [{1:.2f}, {2:.2f}]".format(scores.mean(), 
