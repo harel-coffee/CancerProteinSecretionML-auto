@@ -77,8 +77,10 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   # iterate through cancer types
   for (cType in cancerType) {
     
-    message('Processing cancer type: ', cType, ' (', which(cancerType == cType),
-            ' of ', length(cancerType), ')')
+    if (length(cancerType) > 1) {
+      message('Processing cancer type: ', cType, ' (', which(cancerType == cType),
+              ' of ', length(cancerType), ')')
+    }
     
     # loads raw counts as SummarizedExperiment object named 'data'
     load(paste('/Users/jonrob/Documents/PostDoc/TheCancerGenomeAtlas/RNAseqNEW_data/RawCounts_RData/',
