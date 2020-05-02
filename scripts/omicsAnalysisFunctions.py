@@ -5,14 +5,6 @@ Created on Mon Mar 20 09:50:10 2017
 
 @author: azams
 Updated by Jonathan Robinson
-
-code to autoreload 
-%load_ext autoreload
-%autoreload 2
-
-OR run the following
-import importlib
-importlib.reload(OD)
 """
 
 #print(__doc__)

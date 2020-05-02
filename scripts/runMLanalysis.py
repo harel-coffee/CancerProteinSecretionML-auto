@@ -5,7 +5,7 @@
 """
 
 #%%
-import Omics.OmicsData as OD
+import omicsAnalysisFunctions as OF
 import os
 import warnings
 
@@ -80,7 +80,7 @@ def filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep):
     
     totalsamples = dfCancerType.shape[0]
 
-    dfCancerType = OD.dropNaNs(dfCancerType, ClassVar)    
+    dfCancerType = OF.dropNaNs(dfCancerType, ClassVar)
 
     if totalsamples > dfCancerType.shape[0]:
         print('Number of samples in the dataset after removing missing values: {0}' \
@@ -88,7 +88,7 @@ def filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep):
     
     dfAnalysis = dfCancerType.copy()
     
-    ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis, ClassVar)
+    ClassVarLevelsFreqTab, ClassVarLevelsSorted = OF.returnVarLevelsSorted(dfAnalysis, ClassVar)
     totalsamples = dfAnalysis.shape[0]
     print('Variable for analysis: ' + '\033[1m{:10s}\033[0m'.format(ClassVar))
     print('Total samples: ' + '\033[1m{:d}\033[0m\n'.format(totalsamples))
@@ -98,13 +98,13 @@ def filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep):
     if ClassVar != 'CancerStatus':
         toKeep = ['Primary solid Tumor']
 #            print('\nKeeping samples concerning "Primary solid Tumor" only.')
-        dfAnalysis = OD.FilterLevels(dfAnalysis, 'CancerStatus', toKeep, printStats='no')
+        dfAnalysis = OF.FilterLevels(dfAnalysis, 'CancerStatus', toKeep, printStats='no')
     
     # print updated stats if ClassVar was not CancerStatus
     if totalsamples > dfAnalysis.shape[0]:
 #            print('Updated, number of samples in the dataset:' + '\033[1m{:d}\033[0m'.format(dfAnalysis.shape[0])) 
         print('\nRemoved {0} samples where CancerStatus was not "Primary solid Tumor".'.format(totalsamples - dfAnalysis.shape[0]))
-        ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis,ClassVar)
+        ClassVarLevelsFreqTab, ClassVarLevelsSorted = OF.returnVarLevelsSorted(dfAnalysis,ClassVar)
         ClassVarLevelsFreqTab
         
     # sometimes ClassVar is 'not reported' for some samples. We need to remove those as well.
@@ -118,16 +118,16 @@ def filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep):
               + str(dfAnalysis.shape[0])
               + '\033[0m'
               + ' samples in the dataset.')#.format(dfAnalysis.shape[0]))
-        ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis, ClassVar)
+        ClassVarLevelsFreqTab, ClassVarLevelsSorted = OF.returnVarLevelsSorted(dfAnalysis, ClassVar)
         ClassVarLevelsFreqTab
     
     # Keep samples only for the values in VarLevelsToKeep while samples corresponding to the rest are filtered out.
-    dfAnalysis_fl = OD.FilterLevels(dfAnalysis, ClassVar, VarLevelsToKeep, printStats='no')
+    dfAnalysis_fl = OF.FilterLevels(dfAnalysis, ClassVar, VarLevelsToKeep, printStats='no')
     
-    ClassVarLevelsFreqTab, ClassVarLevelsSorted = OD.returnVarLevelsSorted(dfAnalysis_fl, ClassVar)
+    ClassVarLevelsFreqTab, ClassVarLevelsSorted = OF.returnVarLevelsSorted(dfAnalysis_fl, ClassVar)
     print(ClassVarLevelsFreqTab)
     
-    dfAnalysis_fl = OD.prepareDF(dfAnalysis_fl, ClassVar)
+    dfAnalysis_fl = OF.prepareDF(dfAnalysis_fl, ClassVar)
 
     return dfAnalysis_fl, ClassVarLevelsFreqTab
 
@@ -159,7 +159,7 @@ def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_t
             
     elif med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
         # Look at the list low_tpm_genes, these are the genes which will be removed.
-        data_stats, low_tpm_genes = OD.GeneExpression(dfAnalysis_fl,med_tpm_threshold)
+        data_stats, low_tpm_genes = OF.GeneExpression(dfAnalysis_fl,med_tpm_threshold)
         print('\n********************************************************************')
         if type(med_tpm_threshold) == 'str':
             if med_tpm_threshold == 'zero':
@@ -178,7 +178,7 @@ def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_t
         print(low_tpm_genes)
         
         # Remove low-TPM genes
-        dfAnalysis_fl_cd = OD.CleanData(dfAnalysis_fl, med_tpm_threshold)
+        dfAnalysis_fl_cd = OF.CleanData(dfAnalysis_fl, med_tpm_threshold)
         print('\nSize of the dataframe after filtering low-TPM genes: {0}' \
               .format(dfAnalysis_fl_cd.shape))
         
@@ -200,8 +200,8 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, varLevelsToKeep):
     """
     
     # Perform label encoding for the ClassVar and log-transform data
-    dfAnalysis_fl_cd = OD.mapClassVar(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep)
-    X, y = OD.fitLogTransform(dfAnalysis_fl_cd, logTransOffset)    
+    dfAnalysis_fl_cd = OF.mapClassVar(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep)
+    X, y = OF.fitLogTransform(dfAnalysis_fl_cd, logTransOffset)    
     
     print('Performing ranking of the genes...\n')
     
@@ -215,32 +215,32 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, varLevelsToKeep):
     
     extc = ExtraTreesClassifier(n_estimators=num_est, random_state=RS)
     extc.fit(X,y)
-    ranks['ExtraTreesClassifier'] = OD.Ranks2Dict(extc.feature_importances_, geneNames)
+    ranks['ExtraTreesClassifier'] = OF.Ranks2Dict(extc.feature_importances_, geneNames)
     print('- ExtraTreesClassifier complete.')
     
     rfc = RandomForestClassifier(n_estimators=num_est, random_state=RS)
     rfc.fit(X,y)
-    ranks['RandomForestClassifier'] = OD.Ranks2Dict(rfc.feature_importances_, geneNames)
+    ranks['RandomForestClassifier'] = OF.Ranks2Dict(rfc.feature_importances_, geneNames)
     print('- RandomForestClassifier complete.')
         
     AdabCLF = AdaBoostClassifier(n_estimators=num_est)
     AdabCLF.fit(X,y)
-    ranks['AdaBoostClassifier'] = OD.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
+    ranks['AdaBoostClassifier'] = OF.Ranks2Dict(AdabCLF.feature_importances_, geneNames)
     print('- AdaBoostClassifier complete.')
         
     xgb = XGBClassifier()
     xgb.fit(X, y)
-    ranks['XGBClassifier'] = OD.Ranks2Dict(xgb.feature_importances_, geneNames)
+    ranks['XGBClassifier'] = OF.Ranks2Dict(xgb.feature_importances_, geneNames)
     print('- XGBClassifier complete.')
         
     lda =  LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto')
     lda.fit(X, y)
-    ranks['LinearDiscriminantAnalysis'] = OD.Ranks2Dict(np.abs(lda.coef_[0]), geneNames)
+    ranks['LinearDiscriminantAnalysis'] = OF.Ranks2Dict(np.abs(lda.coef_[0]), geneNames)
     print('- LinearDiscriminantAnalysis complete.')
         
     svmSVC = svm.SVC(kernel='linear')
     svmSVC.fit(X,y)
-    ranks['SVC'] = OD.Ranks2Dict(np.abs(svmSVC.coef_[0]), geneNames)
+    ranks['SVC'] = OF.Ranks2Dict(np.abs(svmSVC.coef_[0]), geneNames)
     print('- SVC complete.')
     
     # Run a logistic regression using Elastic Net regularization. Run a CV
@@ -251,7 +251,7 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, varLevelsToKeep):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # ignore the convergence warnings
         logReg.fit(X, y)  # Note: this is quite slow, ~15 min run time
-    ranks['LogisticRegression'] = OD.Ranks2Dict(np.abs(logReg.coef_[0]), geneNames)
+    ranks['LogisticRegression'] = OF.Ranks2Dict(np.abs(logReg.coef_[0]), geneNames)
     print('- LogisticRegression complete.')
     
     # Calculation of individual gene performance (very slow!)
@@ -297,7 +297,7 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, varLevelsToKeep):
 #    
 #    rfeRFC = RFE(RandomForestClassifier(n_estimators=200, random_state=RS), n_features_to_select=1)
 #    rfeRFC.fit(X,y)
-#    ranks['rfeRFC'] = dict(zip(geneNames, rfeRFC.ranking_ ))#OD.Ranks2Dict(np.array(rfeRFC.ranking_, dtype=float), geneNames)#, order=1)
+#    ranks['rfeRFC'] = dict(zip(geneNames, rfeRFC.ranking_ ))#OF.Ranks2Dict(np.array(rfeRFC.ranking_, dtype=float), geneNames)#, order=1)
 #    print('- rfeRFC complete.')    
 
     # organize and sort ranks
@@ -328,13 +328,13 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, varLevelsToKeep):
     folds = 10
 
     print('Performing models CV analysis using accuracy...\n')
-    dfCVscores_accuracy = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
+    dfCVscores_accuracy = OF.CVScorer(models, CV, X, y, scoring, shuffle, folds)
     print('\nDone!\n')
     
     if len(VarLevelsToKeep) == 2:
         scoring = 'roc_auc'
         print('Performing models CV analysis using area under the ROC curve...\n')
-        dfCVscores_ROC = OD.CVScorer(models, CV, X, y, scoring, shuffle, folds)
+        dfCVscores_ROC = OF.CVScorer(models, CV, X, y, scoring, shuffle, folds)
         print('\nDone!\n')
     else:
         print('Skipping CV analysis using area under the ROC curve. ' \
