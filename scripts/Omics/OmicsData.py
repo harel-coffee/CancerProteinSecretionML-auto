@@ -36,7 +36,6 @@ from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 #dfSEC = pd.read_csv('BigDataProject/SEC_gene_data.csv')
 
 ###############################################################################
-
 ###############################################################################
 
 def ReadOMICSdataCSV(fName):
@@ -584,8 +583,6 @@ def ROCanalysis(mod_name, CV, classifier, X, y, shuffle, folds=10):
 ###############################################################################
 
 
-
-
 def GeneExpression(df,Level):
     """
     This function takes in a data frame with only gene expression values, and
@@ -1034,13 +1031,14 @@ def RecursiceFeatureElimCV(mod_name, CV, classifier, data,n_splits, scoring):
 #    else:
 #        return x
 ###############################################################################
-        
-def BeegleSearchCommonGenes(beegleSearchResults, localGeneSet=False):
-    if localGeneSet is False:
-        dfGeneNamesMappingPSN = pd.read_csv("dfGeneNamesMappingPSN", sep=",")
-        localGeneSet = dfGeneNamesMappingPSN['GeneName'].tolist()
+
+# NOTE: to restore this function, need to get the gene name mapping info from somewhere else
+# def BeegleSearchCommonGenes(beegleSearchResults, localGeneSet=False):
+#     if localGeneSet is False:
+#         dfGeneNamesMappingPSN = pd.read_csv("dfGeneNamesMappingPSN", sep=",")
+#         localGeneSet = dfGeneNamesMappingPSN['GeneName'].tolist()
     
-    dfBeegleResults = pd.read_table(beegleSearchResults + ".tsv")
-    beegleGeneSet = dfBeegleResults['Gene Symbol'].tolist()
-    #return the intersection of two lists 
-    return list(set(localGeneSet) & set(beegleGeneSet))    
+#     dfBeegleResults = pd.read_table(beegleSearchResults + ".tsv")
+#     beegleGeneSet = dfBeegleResults['Gene Symbol'].tolist()
+#     #return the intersection of two lists 
+#     return list(set(localGeneSet) & set(beegleGeneSet))    
