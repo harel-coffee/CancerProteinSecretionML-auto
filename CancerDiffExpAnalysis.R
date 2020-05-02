@@ -1,4 +1,4 @@
-CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels=NULL) {
+CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels=NULL, gene=NULL) {
   # Run a differential expression analysis using edgeR.
   #
   # Input:
@@ -19,10 +19,15 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   #                   If NULL, the function will return a list of all available levels for the 
   #                   chosen class variable.
   #
+  #   gene            Leave empty (NULL) to perform a differential expression analysis.
+  #                   If a gene name is specified, then the expression of that gene in the
+  #                   two groups will be visualized with a plot.
   #
-  # Jonathan Robinson, 2019-07-26
+  #
+  # Jonathan Robinson, 2019-08-07
 
   library(edgeR)
+  library(ggplot2)
   library(SummarizedExperiment)
   setwd("~/Documents/PostDoc/CancerOmicsDataExploration")
     
@@ -30,7 +35,8 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   annotData <- readRDS('/Users/jonrob/Documents/PostDoc/CancerOmicsDataExploration/data/allcancerdata_psn.rds')
   
   # obtain/verify list of cancer types to analyze
-  allCancerTypes <- sub('TCGA-', '', unique(annotData$Project))
+  annotData$Project <- sub('TCGA-', '', annotData$Project)  # remove 'TCGA-' prefix from cancer codes
+  allCancerTypes <- unique(annotData$Project)
   allCancerTypes <- allCancerTypes[!is.na(allCancerTypes)]
   if (is.null(cancerType)) {
     message('Returning list of available cancer types.')
@@ -73,6 +79,51 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   # extract barcodes
   L1_barcodes <- annotData$Barcode[annotData[, classVar] == classVarLevels[1]]
   L2_barcodes <- annotData$Barcode[annotData[, classVar] == classVarLevels[2]]
+  
+  
+  # check if "gene" is specified
+  if (!is.null(gene)) {
+    
+    # extract data for specified gene and class variable levels
+    if (!any(colnames(annotData) == gene)) {
+      stop('The specified gene "', gene, '" was not found in the dataset.')
+    }
+    
+    # determine which cancer types have sufficient samples to be included
+    keep.cancers <- NULL
+    for (cType in cancerType) {
+      cVals <- annotData[annotData$Project == cType, classVar]
+      if ((sum(cVals %in% classVarLevels[1]) >= 10) && (sum(cVals %in% classVarLevels[2]) >= 10)) {
+        keep.cancers <- c(keep.cancers, cType)
+      }
+    }
+    
+    # extract relevant subset of data
+    sample.ind <- (annotData[, classVar] %in% classVarLevels) & (annotData$Project %in% keep.cancers)
+    plot_data <- annotData[sample.ind, c('Project', classVar, gene)]
+    plot_data[, gene] <- log(plot_data[, gene] + 1)  # log-transform TPM values
+    plot_data[, classVar] <- reorder(plot_data[, classVar], plot_data[, classVar] == classVarLevels[2])
+    
+    # generate boxplot
+    p <- ggplot(plot_data, aes_string(x=classVar, y=gene, color=classVar)) +
+      geom_boxplot(outlier.size=0.5) +
+      ylab(paste(gene,'log(TPM+1)')) +
+      facet_grid(. ~ Project) + 
+      theme(axis.text.x=element_blank(),
+            axis.ticks.x=element_blank())
+    
+    # generate violin plot
+    # p <- ggplot(plot_data, aes_string(x=classVar, y=gene, fill=classVar)) + 
+    #   geom_violin(trim=F) +
+    #   ylab(paste(gene,'log(TPM+1)')) +
+    #   facet_grid(. ~ Project) +
+    #   geom_boxplot(width=0.1, fill='white', outlier.size=0.5) +
+    #   theme(axis.text.x=element_blank(),
+    #         axis.ticks.x=element_blank())
+    
+    return(p)
+  }
+  
   
   # iterate through cancer types
   for (cType in cancerType) {
@@ -121,7 +172,7 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
     # fit GLM and test for DE genes
     fit <- glmQLFit(y, design)
     qlf <- glmQLFTest(fit)
-
+    
     # organize results table
     res.table <- qlf$table
     res.table$FDR <- p.adjust(res.table$PValue, 'BH')  # BH = Benjamini-Hochberg method
@@ -145,6 +196,8 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
     res.filename <- paste('results/', cType, '/', file_name_piece, sep='')
     write.table(res.table, file=res.filename, quote=F, sep='\t', row.names=F)
     
-  }
-    
+  } # end for loop through cancer types
+  
+  
+  
 }
