@@ -1,7 +1,7 @@
 # script to run DE analysis on all mutation class variables and cancer types
 
 
-source('~/Documents/PostDoc/CancerOmicsDataExploration/CancerDiffExpAnalysis.R')
+source('~/Documents/PostDoc/CancerOmicsDataExploration/scripts/CancerDiffExpAnalysis.R')
 setwd("~/Documents/PostDoc/CancerOmicsDataExploration")
 
 # get list of all available cancer types

@@ -32,7 +32,7 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   setwd("~/Documents/PostDoc/CancerOmicsDataExploration")
     
   # Load annotation data
-  annotData <- readRDS('/Users/jonrob/Documents/PostDoc/CancerOmicsDataExploration/data/allcancerdata_psn.rds')
+  annotData <- readRDS('/Users/jonrob/Documents/PostDoc/CancerOmicsDataExploration/data/allcancerdata_psp.rds')
   
   # obtain/verify list of cancer types to analyze
   annotData$Project <- sub('TCGA-', '', annotData$Project)  # remove 'TCGA-' prefix from cancer codes
