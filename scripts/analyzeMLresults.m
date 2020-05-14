@@ -1,19 +1,19 @@
 % Load and analyze data/results from Cancer Omics Data Exploration project
 
 
-%% Load ranking/score data for separating cancers by type (normal v. tumor)
+%% Load ranking/score data for separating samples by gene expression values
 
 
 %********************* OPTIONS *********************
 group_by = 'model';  % 'cancer' or 'model'
 filter_by = 'rocauc';  % 'rocauc' or 'accuracy'
-filter_models = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';'XGBClassifier';'SVC';'LogisticRegression'};  % list of models to include in the average model score used for filtering (leave empty to include all)
+filter_models = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';'XGBClassifier';'SVC';'LassoRegression';'RidgeRegression'};  % list of models to include in the average model score used for filtering (leave empty to include all)
 filter_thresh = 0.75; %0.75;  % average model score necessary to include cancer
 scale_by_rocauc = false;  % if TRUE, then gene-level scores will be scaled by the ROC AUC
                          % according to the following formula:
                          % scaled_score = score * (2*ROCAUC - 1)
 
-select_dataset = 'mutTP53';
+select_dataset = 'CancerStatus';
 % WARNING: Case-sensitive!
 %
 %   'CancerStatus': cancer status (normal vs. tumor)
@@ -302,7 +302,7 @@ elseif strcmp(group_by,'model')
     
     % calculate average gene scores among some of the higher-scoring model types
     goodmodels = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
-                  'XGBClassifier';'SVC';'LogisticRegression'};
+                  'XGBClassifier';'SVC';'LassoRegression';'RidgeRegression'};
     goodavg = [];
     for i = 1:length(goodmodels)
         goodavg(:,:,i) = alldata.(goodmodels{i});
@@ -324,8 +324,8 @@ clearvars -except alldata
 
 % specify fieldnames
 f = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
-    'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LogisticRegression';
-    'log10DEfdr'};
+    'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LassoRegression';
+    'RidgeRegression';'log10DEfdr'};
 
 % iterate through cancer types
 C = zeros(numel(f), numel(f), numel(alldata.cancers));  % initialize
@@ -352,13 +352,15 @@ end
 cmap = custom_cmap('whitemagma');
 
 % single cancer type
-cancerType = 'LGG';
-genHeatMap(C(:,:,ismember(alldata.cancers,cancerType)),f,f,'both','euclid',cmap,[0 1],'k');
+cancerType = 'KIRC';
+genHeatMap(C(:,:,ismember(alldata.cancers,cancerType)), 'RowNames', f, ...
+    'ColNames', f, 'colorMap', cmap, 'colorBounds', [0 1], 'gridColor', 'k');
 
 % mean over all cancer types
 Cavg = mean(c,3);
 Cmed = median(c,3);
-genHeatMap(Cmed,f,f,'both','euclid',cmap,[0 1],'k');
+genHeatMap(Cmed,'RowNames', f, 'ColNames', f, 'colorMap', cmap, ...
+    'colorBounds', [0 1], 'gridColor', 'k');
 
 
 %------- Compare cancers and models using dimensionality reduction --------
@@ -417,9 +419,9 @@ end
 set(gca,'XTickLabel',alldata.modelscores.names(sort_ind),'XTickLabelRotation',90);
 
 % generate heatmap
-figure;
 cmap = flipud(custom_cmap('whitemagma'));
-genHeatMap(alldata.modelscores.rocauc', alldata.modelscores.names, alldata.cancers, 'both', 'euclid', cmap, [], 'k');
+genHeatMap(alldata.modelscores.rocauc', 'colNames', alldata.modelscores.names, ...
+    'rowNames', alldata.cancers, 'colorMap', cmap, 'gridColor', 'k');
 
 
 %% Visualize top-scoring genes across cancer types
@@ -443,8 +445,8 @@ end
 
 
 % generate heatmap
-figure
-genHeatMap(alldata.(model_type)(gind,cind), alldata.cancers(cind), alldata.genes(gind), 'both', 'euclid', cmap, [], 'k');
+genHeatMap(alldata.(model_type)(gind,cind), 'colNames', alldata.cancers(cind), ...
+    'rowNames', alldata.genes(gind), 'colorMap', cmap, 'gridColor', 'k');
 
 
 % generate boxplot
@@ -485,9 +487,9 @@ elseif strcmpi(score_method,'median')
 end
 
 % generate heatmap
-figure
 cmap = flipud(custom_cmap('whitemagma'));
-genHeatMap(sel_data(gind,:), f, alldata.genes(gind), 'both', 'euclid', cmap, [], 'k');
+genHeatMap(sel_data(gind,:), 'colNames', f, 'rowNames', alldata.genes(gind), ...
+    'colorMap', cmap, 'gridColor', 'k');
 
 
 % generate boxplot
@@ -518,7 +520,8 @@ end
 
 % generate heatmap
 cmap = flipud(custom_cmap('whitemagma'));
-genHeatMap(gene_scores,f,alldata.cancers,'both','euclid',cmap,[],'k');
+genHeatMap(gene_scores, 'colNames', f, 'rowNames', alldata.cancers, ...
+    'colorMap', cmap, 'gridColor', 'k');
 
 
 %% Visualize top-scoring genes for ONE MODEL across cancer types
@@ -542,8 +545,8 @@ end
 
 % generate heatmap
 cmap = flipud(custom_cmap('whitemagma'));
-figure
-genHeatMap(sel_data(gind,cind), alldata.cancers(cind), alldata.genes(gind), 'both', 'euclid', cmap, [], 'k');
+genHeatMap(sel_data(gind,cind), 'colNames', alldata.cancers(cind), ...
+    'rowNames', alldata.genes(gind), 'colorMap', cmap, 'gridColor', 'k');
 
 % generate boxplot
 [~,sort_gene_ind] = sort(median(sel_data(gind,:),2));
