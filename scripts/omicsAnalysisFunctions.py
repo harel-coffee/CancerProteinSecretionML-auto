@@ -470,6 +470,11 @@ def CVScorer(models, CV, X, y, scoring, shuffle, folds=10):
     dfCVscores = pd.DataFrame(columns=['Model', 'Scoring', 'Score', 'CI-lower', 'CI-high'])    
     for model in models:
         modelName = str(model).partition('(')[0]
+        if modelName == 'LogisticRegression':
+            if model.penalty == 'l1':
+                modelName = 'LassoRegression'
+            elif model.penalty == 'l2':
+                modelName = 'RidgeRegression'
         scores = cross_val_score(model, X, y, scoring=scoring, cv=cv, n_jobs=-1)
         dfCVscores = dfCVscores.append(pd.Series([modelName, scoring, scores.mean(),(scores.mean() - 2*scores.std()), (scores.mean() + 2*scores.std())],
                                                  index=dfCVscores.columns), ignore_index=True)
@@ -1188,17 +1193,17 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
         
     
     extc = ExtraTreesClassifier(n_estimators=num_est, random_state=RS)
-    extc.fit(X,y)
+    extc.fit(X, y)
     ranks['ExtraTreesClassifier'] = Ranks2Dict(extc.feature_importances_, geneNames)
     print('- Extra Trees Classifier complete.')
     
     rfc = RandomForestClassifier(n_estimators=num_est, random_state=RS)
-    rfc.fit(X,y)
+    rfc.fit(X, y)
     ranks['RandomForestClassifier'] = Ranks2Dict(rfc.feature_importances_, geneNames)
     print('- Random Forest Classifier complete.')
         
     AdabCLF = AdaBoostClassifier(n_estimators=num_est)
-    AdabCLF.fit(X,y)
+    AdabCLF.fit(X, y)
     ranks['AdaBoostClassifier'] = Ranks2Dict(AdabCLF.feature_importances_, geneNames)
     print('- AdaBoost Classifier complete.')
         
@@ -1213,19 +1218,19 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
     print('- Linear Discriminant Analysis complete.')
         
     svmSVC = svm.SVC(kernel='linear')
-    svmSVC.fit(X,y)
+    svmSVC.fit(X, y)
     ranks['SVC'] = Ranks2Dict(np.abs(svmSVC.coef_[0]), geneNames)
     print('- SVC complete.')
     
     # Run a logistic regression using Lasso (L1) regularization
     lasso = LogisticRegression(penalty='l1', solver='saga', max_iter=10000, random_state=RS, n_jobs=-1)
-    lasso.fit(X, y)  # Note: this is quite slow, ~15 min run time
+    lasso.fit(X, y)
     ranks['LassoRegression'] = Ranks2Dict(np.abs(lasso.coef_[0]), geneNames)
     print('- Lasso Regression complete.')
     
     # Run a logistic regression using Ridge (L2) regularization
     ridge = LogisticRegression(penalty='l2', solver='saga', max_iter=10000, random_state=RS, n_jobs=-1)
-    ridge.fit(X, y)  # Note: this is quite slow, ~15 min run time
+    ridge.fit(X, y)
     ranks['RidgeRegression'] = Ranks2Dict(np.abs(ridge.coef_[0]), geneNames)
     print('- Ridge Regression complete.')
     
