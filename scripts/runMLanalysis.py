@@ -11,11 +11,17 @@ import pandas as pd
 
 RS = 20170628
 proj_dir = os.path.dirname(os.getcwd())
+output_dir = 'results_rxnScores_geomean'
+
 
 #%%
 #==============================================================================
 # Analysis Parameters
 #==============================================================================
+
+# expression data file name (.h5 file)
+# dataStoreFile = 'CancerDataStore_psp.h5'
+dataStoreFile = 'rxnscoredata_geomean.h5'
 
 # all available cancer types
 allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
@@ -26,14 +32,14 @@ allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
 
 # ClassVar options: 'CancerStatus','TumorStage','TumorStageMerged','TumorStageBinary',
 #                   'OverallSurvival','Race','Gender','Barcode','Mutations',
-#                   'HyperMut','HyperMutBinary'
-ClassVar = 'CancerStatus'
+#                   'HyperMut','HyperMutBinary','AllTumorCombos'
+ClassVar = 'AllTumorCombos'
 
 # Select which levels of the class variable to keep.
 # VarLevelsToKeep = ['Low','Hypermutant']
-VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']
+# VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']
 # VarLevelsToKeep = ['FALSE', 'TRUE']
-#VarLevelsToKeep = ['stage i','stage iii']
+VarLevelsToKeep = ['stage iv','stage x']
 # VarLevelsToKeep = ['stage i-iii','stage iv']
 
 # specify offset to add to TPM values before log-transforming (to handle zeros)
@@ -57,13 +63,17 @@ med_tpm_threshold = 0.1
 
 
 #%%
-        
+
+# create output directory if it does not yet exist
+if not os.path.isdir(proj_dir + '/' + output_dir):
+    os.mkdir(proj_dir + '/' + output_dir)
+
 # Loop through each cancer type, performing the analysis on each type
 for CancerType in allCancerTypes:
     
 #    CancerType = 'COAD'
     
-    CancerDataStore = pd.HDFStore(proj_dir + '/data/CancerDataStore_psp.h5')
+    CancerDataStore = pd.HDFStore(proj_dir + '/data/' + dataStoreFile)
     dfCancerType = CancerDataStore.get(CancerType)
     CancerDataStore.close()
 
@@ -74,8 +84,8 @@ for CancerType in allCancerTypes:
     if ClassVar == 'Mutations':
         all_mutClassVars = [s for s in colnames if 'mut' == s[0:3]]  # extract mutation variables
         for mutClassVar in all_mutClassVars:                        
-            if (CancerType) in os.listdir('results'):
-                if any([True for x in os.listdir(os.getcwd() + '/results/' + CancerType) if mutClassVar + '_GenesRanking' in x]):
+            if (CancerType) in os.listdir(output_dir):
+                if any([True for x in os.listdir(os.getcwd() + '/' + output_dir + '/' + CancerType) if mutClassVar + '_GenesRanking' in x]):
                     print('Already analyzed; skipping.')
                     continue
             # filter samples from data
@@ -94,13 +104,48 @@ for CancerType in allCancerTypes:
             
             # write results to file
             OF.writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, mutClassVar, VarLevelsToKeep)
-            
-    else: 
-        
-        if (CancerType) in os.listdir(proj_dir + '/results'):
-                if any([True for x in os.listdir(proj_dir + '/results/' + CancerType) if ClassVar + '_GenesRanking' in x]):
+
+    elif ClassVar == 'AllTumorCombos':
+        all_tumor_combinations = [['stage i', 'stage ii'], ['stage i', 'stage iii'], ['stage i', 'stage iv'], \
+                                  ['stage i', 'stage x'], ['stage ii', 'stage iii'], ['stage ii', 'stage iv'], \
+                                  ['stage ii', 'stage x'], ['stage iii', 'stage iv'], ['stage iii', 'stage x'], \
+                                  ['stage iv', 'stage x']]
+        for tumor_combo in all_tumor_combinations:
+            ClassVar = 'TumorStageMerged'
+            VarLevelsToKeep = tumor_combo
+            if (CancerType) in os.listdir(proj_dir + '/' + output_dir):
+                file_name_piece = '_'.join(['TumorStage'] + VarLevelsToKeep)
+                file_name_piece = file_name_piece.replace(' ','')
+                if any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if file_name_piece + '_GenesRanking' in x]):
                     print('Already analyzed; skipping.')
                     continue
+            
+            # filter samples from data
+            dfAnalysis_fl, ClassVarLevelsFreqTab = OF.filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep)
+            
+            # check if there are at least 10 samples in each class, and at least 2 classes
+            if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < 2)):
+                print('Insufficient samples to perform analysis; skipping.')
+                continue
+            
+            # filter genes from data
+            dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_tpm_threshold)
+            
+            # fit models, rank genes, and perform cross-validation
+            dfRanks, dfCVscores_accuracy, dfCVscores_ROC = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS)
+            
+            # write results to file
+            resultsPath = proj_dir + '/' + output_dir + '/'
+            OF.writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, ClassVar, VarLevelsToKeep, resultsPath)
+        
+        # re-assign class variable after looping
+        ClassVar = 'AllTumorCombos'
+        
+    else: 
+        if (CancerType) in os.listdir(proj_dir + '/' + output_dir):
+            if any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if ClassVar + '_GenesRanking' in x]):
+                print('Already analyzed; skipping.')
+                continue
         
         # filter samples from data
         dfAnalysis_fl, ClassVarLevelsFreqTab = OF.filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep)
@@ -118,7 +163,7 @@ for CancerType in allCancerTypes:
         dfRanks, dfCVscores_accuracy, dfCVscores_ROC = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS)
         
         # write results to file
-        resultsPath = proj_dir + '/results/'
+        resultsPath = proj_dir + '/' + output_dir + '/'
         OF.writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, ClassVar, VarLevelsToKeep, resultsPath)
         
         
