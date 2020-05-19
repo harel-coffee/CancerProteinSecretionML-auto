@@ -1,10 +1,11 @@
-% Load and analyze data/results from Cancer Omics Data Exploration project
+% Load and analyze data and results from Cancer Omics Data Exploration project
 
 
 %% Load ranking/score data for separating samples by gene expression values
 
 
 %********************* OPTIONS *********************
+results_dir = 'results_rxnScores_median';  % 'results', 'results_rxnScores_geomean', 'results_rxnScores_median'
 group_by = 'model';  % 'cancer' or 'model'
 filter_by = 'rocauc';  % 'rocauc' or 'accuracy'
 filter_models = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';'XGBClassifier';'SVC';'LassoRegression';'RidgeRegression'};  % list of models to include in the average model score used for filtering (leave empty to include all)
@@ -62,7 +63,7 @@ end
 
 
 % get file information from selected directory
-fileinfo = dir(['/Users/jonrob/Documents/PostDoc/CancerOmicsDataExploration/results/*/*_',file_phrase,'_*']);
+fileinfo = dir(['/Users/jonrob/Documents/PostDoc/CancerOmicsDataExploration/',results_dir,'/*/*_',file_phrase,'_*']);
 
 % initialize variables
 [xdata,xtext,de,genes,cancers,alldata,modelscores] = deal({});
@@ -257,7 +258,7 @@ if strcmp(group_by,'cancer')
     % calculate average gene scores among some of the higher-scoring model types
     alldata.modeltypes(end+1) = {'goodavg'};
     goodmodels = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
-                  'XGBClassifier';'SVC';'LogisticRegression'};
+                  'XGBClassifier';'SVC';'LassoRegression','RidgeRegression'};
     goodmodel_inds = ismember(modeltypes,goodmodels);
     for i = 1:numel(cancers)
         alldata.(cancers{i})(:,end+1) = mean(alldata.(cancers{i})(:,goodmodel_inds),2);
@@ -314,6 +315,9 @@ fprintf('Done.\n');
 
 % add model scores to alldata structure
 alldata.modelscores = modelscores;
+
+% modify gene names to avoid interpreting underscore as subscript in plots
+alldata.genes = regexprep(alldata.genes, '_', '\\_');
 
 
 % clear intermediate variables
@@ -427,20 +431,27 @@ genHeatMap(alldata.modelscores.rocauc', 'colNames', alldata.modelscores.names, .
 %% Visualize top-scoring genes across cancer types
 
 % specify parameters
-min_gene_score = 0.5;  % min gene score to include gene and/or cancer
-score_method = 'min';  % 'min', 'mean', or 'median'
+min_gene_score = 20;  % min gene score to include gene and/or cancer
+score_method = 'top_median';  % 'min', 'mean', 'median', 'top_mean', 'top_median'
 model_type = 'Average';  % name of model (e.g., 'XGBClassifier'), or 'Average'
 cmap = flipud(custom_cmap('whitemagma'));  % colormap
 
 % filter genes and cancer types
 cind = true(size(alldata.cancers));
-if strcmpi(score_method,'min')
-    cind = any(alldata.(model_type) > min_gene_score, 1);  % optional cancer type filtration
-    gind = any(alldata.(model_type) > min_gene_score, 2);
-elseif strcmpi(score_method,'mean')
-    gind = mean(alldata.(model_type), 2) > min_gene_score;
-elseif strcmpi(score_method,'median')
-    gind = median(alldata.(model_type), 2) > min_gene_score;
+switch score_method
+    case 'min'
+        cind = any(alldata.(model_type) > min_gene_score, 1);  % optional cancer type filtration
+        gind = any(alldata.(model_type) > min_gene_score, 2);
+    case 'mean'
+        gind = mean(alldata.(model_type), 2) > min_gene_score;
+    case 'median'
+        gind = median(alldata.(model_type), 2) > min_gene_score;
+    case 'top_mean'
+        [~,sort_ind] = sort(mean(alldata.(model_type), 2), 'descend');
+        gind = sort_ind(1:min_gene_score);
+    case 'top_median'
+        [~,sort_ind] = sort(median(alldata.(model_type), 2), 'descend');
+        gind = sort_ind(1:min_gene_score);
 end
 
 
@@ -467,8 +478,9 @@ min_gene_score = 0.5;  % min gene score to include gene
 score_method = 'min';  % 'min', 'mean', or 'median'
 cancer_type = 'COAD';
 f = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
-     'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LogisticRegression';
-     'Average';'log10DEfdr'};
+     'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LassoRegression';
+     'RidgeRegression';'Average';'log10DEfdr'};
+f = intersect(f, fieldnames(alldata), 'stable');
 
 % collect data for selected cancer type
 [~,cancer_ind] = ismember(cancer_type, alldata.cancers);
@@ -491,7 +503,6 @@ cmap = flipud(custom_cmap('whitemagma'));
 genHeatMap(sel_data(gind,:), 'colNames', f, 'rowNames', alldata.genes(gind), ...
     'colorMap', cmap, 'gridColor', 'k');
 
-
 % generate boxplot
 [~,sort_gene_ind] = sort(median(sel_data(gind,:),2));
 plotdata = sel_data(gind,:)';
@@ -508,8 +519,9 @@ set(gca,'YTickLabel', genenames, 'YTick', 1:numel(genenames));
 % specify gene name and model types to examine
 gene = 'HSPA4L';  % specify gene name
 f = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
-    'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LogisticRegression';
-    'log10DEfdr'};
+    'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LassoRegression';
+    'RidgeRegression';'log10DEfdr'};
+f = intersect(f, fieldnames(alldata));
 
 % collect gene scores across cancer and model types
 [~,g_ind] = ismember(gene, alldata.genes);
@@ -526,7 +538,7 @@ genHeatMap(gene_scores, 'colNames', f, 'rowNames', alldata.cancers, ...
 
 %% Visualize top-scoring genes for ONE MODEL across cancer types
 
-model = 'log10DEfdr';  % specify model name
+model = 'LinearDiscriminantAnalysis';  % specify model name
 min_gene_score = 0.8;
 score_method = 'min';  % 'min', 'mean', or 'median'
 
