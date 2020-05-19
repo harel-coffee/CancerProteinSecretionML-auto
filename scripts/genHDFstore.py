@@ -4,25 +4,25 @@
 Created on 2019-08-01
 
 Author: Jonathan Robinson
+
+This function loads the gene expression data and metadata from a .csv file 
+and generates an H5 data file used for the ML analysis pipeline.
+
+Usage: python genHDFstore.py <input filename> <output filename>
 """
 
 import sys
 import numpy as np
 import pandas as pd
-import Omics.OmicsData as OD
+import omicsAnalysisFunctions as OF
 
 def prepCancerTypeDict(inFile, outFile):
-    """
-    This function loads the entire PSN cancer dataset from  'allcancerdata.csv' 
-    and returns a disctionaly of dataframes, where each dataframe corresponds 
-    to a cancer types. 
-    """ 
     
     # Import data from csv to a data frame
     if '.csv' in inFile:
-        df = pd.read_csv('data/' + inFile)
+        df = pd.read_csv(inFile)
     else:
-        df = pd.read_csv('data/' + inFile + ".csv")
+        df = pd.read_csv(inFile + ".csv")
     # There is a column with name Unnamed: 0. 
     # Dropping it here.
     if 'Unnamed: 0' in df.columns:
@@ -40,13 +40,13 @@ def prepCancerTypeDict(inFile, outFile):
     for project in arr:
         ClassVar = 'Project'
         toKeep = [project]
-        cancerTypesDic[project]= OD.FilterLevels(df, ClassVar, toKeep, printStats='no')
+        cancerTypesDic[project]= OF.FilterLevels(df, ClassVar, toKeep, printStats='no')
     
     # write the dictionary to an hdfStore.
     if '.h5' in outFile:
-        CancerDataStore = pd.HDFStore('data/' + outFile)
+        CancerDataStore = pd.HDFStore(outFile)
     else:    
-        CancerDataStore = pd.HDFStore('data/' + outFile + '.h5')
+        CancerDataStore = pd.HDFStore(outFile + '.h5')
 
     for (key, value) in cancerTypesDic.items():
         # keys are names of cancers, e.g., TCGA-BRCA. Using split to ignore the TCGA- part and use
