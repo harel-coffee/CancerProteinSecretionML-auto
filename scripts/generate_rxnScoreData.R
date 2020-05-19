@@ -1,4 +1,4 @@
-generate_rxnScoreData <- function(geneRxnAssocFile=NULL, scoreMethod=median) {
+generate_rxnScoreData <- function(geneRxnAssocFile=NULL, scoreMethod=median, file_name='rxnscoredata') {
   
   # load gene-reaction association matrix
   geneRxnAssoc <- read.delim(geneRxnAssocFile, row.names=1)
@@ -28,4 +28,15 @@ generate_rxnScoreData <- function(geneRxnAssocFile=NULL, scoreMethod=median) {
     rxnScores[, i] <- apply(tpm_data[genes[geneRxnAssoc[i, ] > 0]], 1, scoreMethod)
   }
   
+  # join reaction score matrix with metadata and export
+  data <- cbind(rxnScores, meta_data)
+  if (!is.null(file_name)) {
+    write.csv(data, file=paste0(file_name, '.csv'), quote=TRUE)
+  }
+  invisible(data)
 }
+
+
+
+
+
