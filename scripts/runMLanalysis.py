@@ -11,7 +11,6 @@ import pandas as pd
 
 RS = 20170628
 proj_dir = os.path.dirname(os.getcwd())
-output_dir = 'results'
 
 
 #%%
@@ -19,9 +18,8 @@ output_dir = 'results'
 # Analysis Parameters
 #==============================================================================
 
-# expression data file name (.h5 file)
-dataStoreFile = 'CancerDataStore_psp.h5'
-# dataStoreFile = 'rxnscoredata_geomean.h5'
+# specify type of data to use: 'gene', 'reaction_geomean', 'reaction_median'
+dataType = 'reaction_geomean'
 
 # all available cancer types
 allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
@@ -62,7 +60,25 @@ numSigCancers = 10  # Number of cancers in which gene must be significant
 med_tpm_threshold = 0.1
 
 
+#==============================================================================
+# Define some paths
+#==============================================================================
+
+if dataType == 'gene':
+    dataStoreFile = 'CancerDataStore_psp.h5'
+    output_dir = 'results'
+elif dataType == 'reaction_geomean':
+    dataStoreFile = 'rxnscoredata_geomean.h5'
+    output_dir = 'results_rxnScores_geomean'
+elif dataType == 'reaction_median':
+    dataStoreFile = 'rxnscoredata_median.h5'
+    output_dir = 'results_rxnScores_median'
+
+
 #%%
+#==============================================================================
+# Main analysis section
+#==============================================================================
 
 # create output directory if it does not yet exist
 if not os.path.isdir(proj_dir + '/' + output_dir):
