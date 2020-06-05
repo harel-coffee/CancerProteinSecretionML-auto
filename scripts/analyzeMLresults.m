@@ -458,6 +458,7 @@ end
 % generate heatmap
 genHeatMap(alldata.(model_type)(gind,cind), 'colNames', alldata.cancers(cind), ...
     'rowNames', alldata.genes(gind), 'colorMap', cmap, 'gridColor', 'k');
+set(gca, 'FontSize', 12);
 
 
 % generate boxplot
@@ -468,7 +469,7 @@ genenames = alldata.genes(gind);
 genenames = genenames(sort_gene_ind);
 figure
 boxplot(plotdata, 'PlotStyle', 'compact', 'Orientation', 'horizontal', 'Colors', 'k');
-set(gca,'YTickLabel', genenames, 'YTick', 1:numel(genenames));%,'XTickLabelRotation',90);
+set(gca,'YTickLabel', genenames, 'YTick', 1:numel(genenames), 'FontSize', 12);%,'XTickLabelRotation',90);
 
 
 %% Visualize top-scoring genes across models within ONE CANCER type
