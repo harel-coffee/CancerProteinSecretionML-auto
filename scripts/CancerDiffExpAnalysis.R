@@ -29,10 +29,10 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   library(edgeR)
   library(ggplot2)
   library(SummarizedExperiment)
-  setwd("~/Documents/PostDoc/CancerOmicsDataExploration")
+  setwd("/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML")
     
   # Load annotation data
-  annotData <- readRDS('/Users/jonrob/Documents/PostDoc/CancerOmicsDataExploration/data/allcancerdata_psp.rds')
+  annotData <- readRDS('/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML/data/allcancerdata_psp.rds')
   
   # obtain/verify list of cancer types to analyze
   annotData$Project <- sub('TCGA-', '', annotData$Project)  # remove 'TCGA-' prefix from cancer codes
