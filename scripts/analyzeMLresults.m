@@ -5,16 +5,17 @@
 
 
 %********************* OPTIONS *********************
-results_dir = 'results_rxnScores_median';  % 'results', 'results_rxnScores_geomean', 'results_rxnScores_median'
+proj_dir = '/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML/';
+results_dir = 'results';  % 'results', 'results_rxnScores_geomean', 'results_rxnScores_median'
 group_by = 'model';  % 'cancer' or 'model'
 filter_by = 'rocauc';  % 'rocauc' or 'accuracy'
-filter_models = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';'XGBClassifier';'SVC';'LassoRegression';'RidgeRegression'};  % list of models to include in the average model score used for filtering (leave empty to include all)
-filter_thresh = 0.75; %0.75;  % average model score necessary to include cancer
+filter_models = {}; %{'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';'XGBClassifier';'SVC';'LassoRegression';'RidgeRegression'};  % list of models to include in the average model score used for filtering (leave empty to include all)
+filter_thresh = 0; %0.75;  % average model score necessary to include cancer
 scale_by_rocauc = false;  % if TRUE, then gene-level scores will be scaled by the ROC AUC
                          % according to the following formula:
                          % scaled_score = score * (2*ROCAUC - 1)
 
-select_dataset = 'CancerStatus';
+select_dataset = 'mutTP53';
 % WARNING: Case-sensitive!
 %
 %   'CancerStatus': cancer status (normal vs. tumor)
@@ -63,10 +64,10 @@ end
 
 
 % get file information from selected directory
-fileinfo = dir(['/Users/jonrob/Documents/PostDoc/CancerOmicsDataExploration/',results_dir,'/*/*_',file_phrase,'_*']);
+fileinfo = dir([proj_dir, results_dir, '/*/*_', file_phrase, '_*']);
 
 % initialize variables
-[xdata,xtext,de,genes,cancers,alldata,modelscores] = deal({});
+[xdata, xtext, de, genes, cancers, alldata, modelscores] = deal({});
 
 % extract data from each file
 modeltypes = {};
@@ -85,6 +86,7 @@ for i = 1:length(fileinfo)
                         'stageii',      '2';
                         'stageiii',     '3';
                         'stageiv',      '4';
+                        'stagex',       '5';
                         'stagei-ii',    '12';
                         'stagei-iii',   '123';
                         'stageii-iv',   '234';
@@ -301,6 +303,12 @@ elseif strcmp(group_by,'model')
         alldata.log10DEfdr = x./max(x,[],1);  % normalize by max value in each cancer type
     end
     
+    % add abs-value logFC values from DE analysis as new field
+    if isfield(alldata,'DElogfc')
+        x = abs(alldata.DElogfc);  % absolute value
+        alldata.absDElogfc = x./max(x,[],1);  % normalize by max value in each cancer type
+    end
+    
     % calculate average gene scores among some of the higher-scoring model types
     goodmodels = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
                   'XGBClassifier';'SVC';'LassoRegression';'RidgeRegression'};
@@ -329,7 +337,7 @@ clearvars -except alldata
 % specify fieldnames
 f = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
     'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LassoRegression';
-    'RidgeRegression';'log10DEfdr'};
+    'RidgeRegression';'log10DEfdr';'absDElogfc'};
 
 % iterate through cancer types
 C = zeros(numel(f), numel(f), numel(alldata.cancers));  % initialize
@@ -355,16 +363,17 @@ end
 % visualize with heatmap
 cmap = custom_cmap('whitemagma');
 
-% single cancer type
-cancerType = 'KIRC';
-genHeatMap(C(:,:,ismember(alldata.cancers,cancerType)), 'RowNames', f, ...
-    'ColNames', f, 'colorMap', cmap, 'colorBounds', [0 1], 'gridColor', 'k');
+% % single cancer type
+% cancerType = 'KIRC';
+% genHeatMap(C(:,:,ismember(alldata.cancers,cancerType)), 'RowNames', f, ...
+%     'ColNames', f, 'colorMap', cmap, 'colorBounds', [0 1], 'gridColor', 'k');
 
 % mean over all cancer types
 Cavg = mean(c,3);
 Cmed = median(c,3);
 genHeatMap(Cmed,'RowNames', f, 'ColNames', f, 'colorMap', cmap, ...
     'colorBounds', [0 1], 'gridColor', 'k');
+set(gca, 'FontSize', 12);
 
 
 %------- Compare cancers and models using dimensionality reduction --------
@@ -388,14 +397,19 @@ for i = 1:numel(alldata.cancers)
 end
 
 % run PCA
-[pca_coeff,pca_score,~,~,pca_pctvar] = pca(mergedData','NumComponents',3);
+% [pca_coeff,pca_score,~,~,pca_pctvar] = pca(mergedData','NumComponents',3);
 
 % run tSNE
-tsne_coords = tsne(mergedData', 'NumDimensions', 2, 'Perplexity', 10);
+% tsne_coords = tsne(mergedData', 'NumDimensions', 2, 'Perplexity', 10);
+
+% run UMAP
+[reduction,umap] = run_umap(mergedData', 'n_neighbors', 15, 'n_components', 2, ...
+    'verbose', 'none', 'metric', 'euclidean');
 
 % plot results
-labels = label_cancer;
-grouped_scatter(pca_score, labels, 3, 'lines', 50);
+labels = label_model;  % label_cancer
+figure;
+grouped_scatter(reduction, labels, 2, 'lines', 50);
 set(gca, 'FontSize', 12);
 legend(unique(labels), 'FontSize', 12);
 
@@ -428,11 +442,11 @@ genHeatMap(alldata.modelscores.rocauc', 'colNames', alldata.modelscores.names, .
     'rowNames', alldata.cancers, 'colorMap', cmap, 'gridColor', 'k');
 
 
-%% Visualize top-scoring genes across cancer types
+%% Visualize top-scoring genes across all models and all cancer types
 
 % specify parameters
-min_gene_score = 20;  % min gene score to include gene and/or cancer
-score_method = 'top_median';  % 'min', 'mean', 'median', 'top_mean', 'top_median'
+min_gene_score = 10;  % min gene score to include gene and/or cancer
+score_method = 'top_mean';  % 'min', 'mean', 'median', 'top_mean', 'top_median', 'top_each'
 model_type = 'Average';  % name of model (e.g., 'XGBClassifier'), or 'Average'
 cmap = flipud(custom_cmap('whitemagma'));  % colormap
 
@@ -440,7 +454,7 @@ cmap = flipud(custom_cmap('whitemagma'));  % colormap
 cind = true(size(alldata.cancers));
 switch score_method
     case 'min'
-        cind = any(alldata.(model_type) > min_gene_score, 1);  % optional cancer type filtration
+%         cind = any(alldata.(model_type) > min_gene_score, 1);  % optional cancer type filtration
         gind = any(alldata.(model_type) > min_gene_score, 2);
     case 'mean'
         gind = mean(alldata.(model_type), 2) > min_gene_score;
@@ -452,6 +466,9 @@ switch score_method
     case 'top_median'
         [~,sort_ind] = sort(median(alldata.(model_type), 2), 'descend');
         gind = sort_ind(1:min_gene_score);
+    case 'top_each'
+        [~,sort_ind] = sort(alldata.(model_type), 1, 'descend');
+        gind = unique(sort_ind(1:min_gene_score, :));
 end
 
 
@@ -462,22 +479,24 @@ set(gca, 'FontSize', 12);
 
 
 % generate boxplot
-[~,sort_gene_ind] = sort(median(alldata.(model_type)(gind,cind),2));
+[~,sort_gene_ind] = sort(mean(alldata.(model_type)(gind,cind),2));
 plotdata = alldata.(model_type)(gind,cind)';
 plotdata = plotdata(:, sort_gene_ind);
 genenames = alldata.genes(gind);
 genenames = genenames(sort_gene_ind);
 figure
 boxplot(plotdata, 'PlotStyle', 'compact', 'Orientation', 'horizontal', 'Colors', 'k');
-set(gca,'YTickLabel', genenames, 'YTick', 1:numel(genenames), 'FontSize', 12);%,'XTickLabelRotation',90);
+set(gca, 'YTickLabel', genenames, 'YTick', 1:numel(genenames), 'FontSize', 12);%,'XTickLabelRotation',90);
+xl = xlim(gca);
+set(gca, 'XLim', [0 xl(2)]);
 
 
 %% Visualize top-scoring genes across models within ONE CANCER type
 
 % specify parameters
-min_gene_score = 0.5;  % min gene score to include gene
-score_method = 'min';  % 'min', 'mean', or 'median'
-cancer_type = 'COAD';
+min_gene_score = 0.25;  % min gene score to include gene
+score_method = 'mean';  % 'min', 'mean', or 'median'
+cancer_type = 'SKCM';
 f = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
      'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LassoRegression';
      'RidgeRegression';'Average';'log10DEfdr'};
@@ -518,7 +537,7 @@ set(gca,'YTickLabel', genenames, 'YTick', 1:numel(genenames));
 %% Visualize scores for ONE GENE across models and cancer types
 
 % specify gene name and model types to examine
-gene = 'HSPA4L';  % specify gene name
+gene = 'CRYAB';  % specify gene name
 f = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
     'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LassoRegression';
     'RidgeRegression';'log10DEfdr'};
@@ -539,37 +558,80 @@ genHeatMap(gene_scores, 'colNames', f, 'rowNames', alldata.cancers, ...
 
 %% Visualize top-scoring genes for ONE MODEL across cancer types
 
-model = 'LinearDiscriminantAnalysis';  % specify model name
-min_gene_score = 0.8;
-score_method = 'min';  % 'min', 'mean', or 'median'
+model_type = 'log10DEfdr';  % specify model name
+min_gene_score = 20;
+score_method = 'top_mean'; %'min', 'mean', 'median', 'top_mean', 'top_median', 'top_each'
 
-sel_data = alldata.(model);
-
-% filter genes
+% filter genes and cancer types
 cind = true(size(alldata.cancers));
-if strcmpi(score_method,'min')
-    gind = any(sel_data > min_gene_score, 2);
-%     cind = any(sel_data > min_gene_score, 1);  % optional cancer type filtration
-elseif strcmpi(score_method,'mean')
-    gind = mean(sel_data, 2) > min_gene_score;
-elseif strcmpi(score_method,'median')
-    gind = median(sel_data, 2) > min_gene_score;
+switch score_method
+    case 'min'
+%         cind = any(alldata.(model_type) > min_gene_score, 1);  % optional cancer type filtration
+        gind = any(alldata.(model_type) > min_gene_score, 2);
+    case 'mean'
+        gind = mean(alldata.(model_type), 2) > min_gene_score;
+    case 'median'
+        gind = median(alldata.(model_type), 2) > min_gene_score;
+    case 'top_mean'
+        [~,sort_ind] = sort(mean(alldata.(model_type), 2), 'descend');
+        gind = sort_ind(1:min_gene_score);
+    case 'top_median'
+        [~,sort_ind] = sort(median(alldata.(model_type), 2), 'descend');
+        gind = sort_ind(1:min_gene_score);
+    case 'top_each'
+        [~,sort_ind] = sort(alldata.(model_type), 1, 'descend');
+        gind = unique(sort_ind(1:min_gene_score, :));
 end
 
 % generate heatmap
 cmap = flipud(custom_cmap('whitemagma'));
-genHeatMap(sel_data(gind,cind), 'colNames', alldata.cancers(cind), ...
+genHeatMap(alldata.(model_type)(gind,cind), 'colNames', alldata.cancers(cind), ...
     'rowNames', alldata.genes(gind), 'colorMap', cmap, 'gridColor', 'k');
 
 % generate boxplot
-[~,sort_gene_ind] = sort(median(sel_data(gind,:),2));
-plotdata = sel_data(gind,:)';
+[~,sort_gene_ind] = sort(mean(alldata.(model_type)(gind,:),2));
+plotdata = alldata.(model_type)(gind,:)';
 plotdata = plotdata(:, sort_gene_ind);
 genenames = alldata.genes(gind);
 genenames = genenames(sort_gene_ind);
 figure
 boxplot(plotdata, 'PlotStyle', 'compact', 'Orientation', 'horizontal', 'Colors', 'k');
-set(gca,'YTickLabel', genenames, 'YTick', 1:numel(genenames));
+set(gca,'YTickLabel', genenames, 'YTick', 1:numel(genenames), 'FontSize', 12);
+
+
+%% Visualize DE logFC and p-val for top-scoring genes across cancer types
+
+model_type = 'log10DEfdr';  % specify how to choose the top genes
+min_gene_score = 10;
+score_method = 'top_mean'; %'min', 'mean', 'median', 'top_mean', 'top_median', 'top_each'
+
+% filter genes and cancer types
+switch score_method
+    case 'min'
+        gind = any(alldata.(model_type) > min_gene_score, 2);
+    case 'mean'
+        gind = mean(alldata.(model_type), 2) > min_gene_score;
+    case 'median'
+        gind = median(alldata.(model_type), 2) > min_gene_score;
+    case 'top_mean'
+        [~,sort_ind] = sort(mean(alldata.(model_type), 2), 'descend');
+        gind = sort_ind(1:min_gene_score);
+    case 'top_median'
+        [~,sort_ind] = sort(median(alldata.(model_type), 2), 'descend');
+        gind = sort_ind(1:min_gene_score);
+    case 'top_each'
+        [~,sort_ind] = sort(alldata.(model_type), 1, 'descend');
+        gind = unique(sort_ind(1:min_gene_score, :));
+end
+
+% Alternative: specify genes by name
+% gind = find(startsWith(alldata.genes, 'CRY'));
+
+% generate heatscatter plot
+cmap = custom_cmap('redblue');
+genHeatScatter(-log10(alldata.DEfdr(gind,:)), alldata.DElogfc(gind,:), ...
+    'colNames', alldata.cancers, 'rowNames', alldata.genes(gind), ...
+    'colorMap', cmap, 'sizeBounds', [0 5], 'colorBounds', [-2 2]);
 
 
 %% Compare model ROC AUC scores among different cancer types and mutations
@@ -632,297 +694,333 @@ set(gca,'XTickLabel',group_names(sort_ind),'XTickLabelRotation',90);
 clearvars -except alldata
 
 
+%% Visualize top-scoring genes for mutations; grouped by cancer or mutation
+
+% THIS SECTION IS INCOMPLETE!!!
+
+%*********** specify parameters ***********
+group_by = 'muts';  % 'cancers' or 'muts'
+comb_method = 'mean';  % 'mean' or 'median' (how to combine scores of each model type)
+score_types = {'all'}; %{'ExtraTreesClassifier','RandomForestClassifier','XGBClassifier','SVClinear'};
+sort_boxes = true;  % 'true' or 'false' (sort boxes in boxplot by median scores)
+%******************************************
 
 
-
-
-
-
-
-
-%% Perform Gene Set Analysis
-
-%****** specify data to analyze ******
-gene_names = alldata.genes;
-cancers = alldata.cancers;
-gstats = alldata.Average;
-%*************************************
-
-sig_GSnames = {};
-sig_GSsizes = [];
-sig_padj_nondir = [];
-allGOsets = {'H';'C2CP_BIO';'C2CP_KEGG';'C2CP_REAC';'C5BP';'C5CC';'C5MF'};
-for k = 1:length(allGOsets)
-
-% load and process gene set list
-humanGO = load_human_GO_terms('MSigDB',allGOsets{k});
-GSlist = humanGO;
-% GSlist = ppi_GS_names(ppi_GS_scores >= 900,:);
-% keep_ind = (~ismember(ppi_GS(:,1),psn_genes)) & ismember(ppi_GS(:,2),psn_genes) & (ppi_GS_scores >= 900);
-% GSlist = ppi_GS_names(keep_ind,:);
-
-% remove rows without specified genes
-GSlist(~ismember(GSlist(:,2),gene_names),:) = [];
-
-% remove repeated entries in GSlist
-[~,gsnums] = ismember(GSlist,GSlist);
-[~,uniq_ind] = unique(gsnums,'rows');
-GSlist = GSlist(uniq_ind,:);
-
-% remove gene sets with only one entry
-[gsnames,gsfreq] = cellfreq(GSlist(:,1));
-gscut = gsnames(gsfreq == 1);
-GSlist(ismember(GSlist(:,1),gscut),:) = [];
-
-% merge similar GSs
-[GSlist,mergedGSinfo] = consolidate_gene_sets(GSlist,'union',0);
-
-
-% run gene set analysis for each cancer type
-padj_nondir = []; p_nondir = [];
-GSR = {};
-for i = 1:length(cancers)
-    
-    fprintf('\n\nProcessing cancer type %u of %u.\n\n',i,length(cancers));
-    
-    [GSAres,gene_sets] = GeneSetAnalysis(gene_names,gstats(:,i),[],GSlist,'wilcoxon',10000,[5 Inf],'other');
-    
-    GSR{i,1} = GSAres;
-    
-    [~,ind] = ismember({'padj_nondir';'p_nondir'},GSAres(1,:));
-    padj_nondir(:,i) = cell2mat(GSAres(2:end,ind(1)));
-    p_nondir(:,i) = cell2mat(GSAres(2:end,ind(2)));
-    
-end
-GSnames = GSR{1}(2:end,1);
-GSsizes = cell2mat(GSR{1}(2:end,2));
-GSRcols = GSR{1}(1,:)';
-
-% filter out nonsignificant gene sets
-ind = any(padj_nondir < 0.05,2);
-% ind = true(length(GSnames),1);
-
-
-sig_GSnames = [sig_GSnames;GSnames(ind)];
-sig_GSsizes = [sig_GSsizes;GSsizes(ind)];
-sig_padj_nondir = [sig_padj_nondir;padj_nondir(ind,:)];
+% separate cancer types and mutations in labels
+tmp = split(alldata.cancers,'-mut');
+cancers = tmp(:,1);
+if size(tmp,2) > 1
+    muts = tmp(:,2);
+else
+    muts = [];
 end
 
-% plot results
-cg = RNAseq_heatmap(-log10(padj_nondir(ind,:)),cancers,GSnames(ind),'none','integer','hot');
+% determine unique cancers and mutations
+uniq_cancers = unique(cancers);
+uniq_muts = unique(muts);
+
+% identify genes to keep
+% if strcmpi(group_by, 'muts')
+%     for i = 1:numel(uniq_muts)
+% %         mut_ind = find(ismember(muts, uniq_muts(i)));
+% %         [~,sort_ind] = sort(alldata.(model_type)(:,mut_ind), 1, 'descend');
+% %         gind = unique(sort_ind(1:threshold, :));
+% %         cind = mut_ind(sort_ind(1:threshold, :) 
+
+        
+        gind = unique(sort_ind(1:min_gene_score, :));
 
 
-% % identify repeated gene sets, and keep only the last appearance of each
-% cut_ind = [];
-% for i = 1:length(sig_GSnames)
-%     if sum(ismember(sig_GSnames(i:end),sig_GSnames(i))) > 1
-%         cut_ind = [cut_ind;i];
+
+        
+        
+        
+        
+%%
+% %% Perform Gene Set Analysis
+% 
+% %****** specify data to analyze ******
+% gene_names = alldata.genes;
+% cancers = alldata.cancers;
+% gstats = alldata.Average;
+% %*************************************
+% 
+% sig_GSnames = {};
+% sig_GSsizes = [];
+% sig_padj_nondir = [];
+% allGOsets = {'H';'C2CP_BIO';'C2CP_KEGG';'C2CP_REAC';'C5BP';'C5CC';'C5MF'};
+% for k = 1:length(allGOsets)
+% 
+% % load and process gene set list
+% humanGO = load_human_GO_terms('MSigDB',allGOsets{k});
+% GSlist = humanGO;
+% % GSlist = ppi_GS_names(ppi_GS_scores >= 900,:);
+% % keep_ind = (~ismember(ppi_GS(:,1),psn_genes)) & ismember(ppi_GS(:,2),psn_genes) & (ppi_GS_scores >= 900);
+% % GSlist = ppi_GS_names(keep_ind,:);
+% 
+% % remove rows without specified genes
+% GSlist(~ismember(GSlist(:,2),gene_names),:) = [];
+% 
+% % remove repeated entries in GSlist
+% [~,gsnums] = ismember(GSlist,GSlist);
+% [~,uniq_ind] = unique(gsnums,'rows');
+% GSlist = GSlist(uniq_ind,:);
+% 
+% % remove gene sets with only one entry
+% [gsnames,gsfreq] = cellfreq(GSlist(:,1));
+% gscut = gsnames(gsfreq == 1);
+% GSlist(ismember(GSlist(:,1),gscut),:) = [];
+% 
+% % merge similar GSs
+% [GSlist,mergedGSinfo] = consolidate_gene_sets(GSlist,'union',0);
+% 
+% 
+% % run gene set analysis for each cancer type
+% padj_nondir = []; p_nondir = [];
+% GSR = {};
+% for i = 1:length(cancers)
+%     
+%     fprintf('\n\nProcessing cancer type %u of %u.\n\n',i,length(cancers));
+%     
+%     [GSAres,gene_sets] = GeneSetAnalysis(gene_names,gstats(:,i),[],GSlist,'wilcoxon',10000,[5 Inf],'other');
+%     
+%     GSR{i,1} = GSAres;
+%     
+%     [~,ind] = ismember({'padj_nondir';'p_nondir'},GSAres(1,:));
+%     padj_nondir(:,i) = cell2mat(GSAres(2:end,ind(1)));
+%     p_nondir(:,i) = cell2mat(GSAres(2:end,ind(2)));
+%     
+% end
+% GSnames = GSR{1}(2:end,1);
+% GSsizes = cell2mat(GSR{1}(2:end,2));
+% GSRcols = GSR{1}(1,:)';
+% 
+% % filter out nonsignificant gene sets
+% ind = any(padj_nondir < 0.05,2);
+% % ind = true(length(GSnames),1);
+% 
+% 
+% sig_GSnames = [sig_GSnames;GSnames(ind)];
+% sig_GSsizes = [sig_GSsizes;GSsizes(ind)];
+% sig_padj_nondir = [sig_padj_nondir;padj_nondir(ind,:)];
+% end
+% 
+% % plot results
+% cg = RNAseq_heatmap(-log10(padj_nondir(ind,:)),cancers,GSnames(ind),'none','integer','hot');
+% 
+% 
+% % % identify repeated gene sets, and keep only the last appearance of each
+% % cut_ind = [];
+% % for i = 1:length(sig_GSnames)
+% %     if sum(ismember(sig_GSnames(i:end),sig_GSnames(i))) > 1
+% %         cut_ind = [cut_ind;i];
+% %     end
+% % end
+% % sig_GSnames(cut_ind) = [];
+% % sig_GSsizes(cut_ind) = [];
+% % sig_padj_nondir(cut_ind,:) = [];
+% 
+% 
+% %% Group by cancer type or mutation
+% 
+% % option to merge COAD and READ as single cancer type
+% merge_COAD_READ = false;
+% 
+% % extract list of cancer types and mutations
+% cancer_muts = cellsplit(alldata.cancers,'mut');
+% cancers = cancer_muts(:,1);
+% muts = cancer_muts(:,2);
+% 
+% % merge COAD and READ if requested
+% if ( merge_COAD_READ )
+%     cancers(ismember(cancers,{'COAD','READ'})) = {'COADREAD'};
+% end
+% 
+% % determine frequency of each mutation and cancer
+% [c_uniq,c_freq] = cellfreq(cancers);
+% [m_uniq,m_freq] = cellfreq(muts);
+% 
+% % determine mean score and rank for each mutation and cancer
+% clear merged_cancers merged_muts
+% merged_cancers.cancers = c_uniq;
+% merged_muts.muts = m_uniq;
+% score_fields = fields(alldata);
+% score_fields(ismember(score_fields,{'genes','cancers','modelscores'})) = [];
+% for i = 1:length(c_uniq)
+%     ind = ismember(cancers,c_uniq(i));
+%     for j = 1:length(score_fields)
+%         merged_cancers.(score_fields{j})(:,i) = median(alldata.(score_fields{j})(:,ind),2);
 %     end
 % end
-% sig_GSnames(cut_ind) = [];
-% sig_GSsizes(cut_ind) = [];
-% sig_padj_nondir(cut_ind,:) = [];
-
-
-%% Group by cancer type or mutation
-
-% option to merge COAD and READ as single cancer type
-merge_COAD_READ = false;
-
-% extract list of cancer types and mutations
-cancer_muts = cellsplit(alldata.cancers,'mut');
-cancers = cancer_muts(:,1);
-muts = cancer_muts(:,2);
-
-% merge COAD and READ if requested
-if ( merge_COAD_READ )
-    cancers(ismember(cancers,{'COAD','READ'})) = {'COADREAD'};
-end
-
-% determine frequency of each mutation and cancer
-[c_uniq,c_freq] = cellfreq(cancers);
-[m_uniq,m_freq] = cellfreq(muts);
-
-% determine mean score and rank for each mutation and cancer
-clear merged_cancers merged_muts
-merged_cancers.cancers = c_uniq;
-merged_muts.muts = m_uniq;
-score_fields = fields(alldata);
-score_fields(ismember(score_fields,{'genes','cancers','modelscores'})) = [];
-for i = 1:length(c_uniq)
-    ind = ismember(cancers,c_uniq(i));
-    for j = 1:length(score_fields)
-        merged_cancers.(score_fields{j})(:,i) = median(alldata.(score_fields{j})(:,ind),2);
-    end
-end
-for i = 1:length(m_uniq)
-    ind = ismember(muts,m_uniq(i));
-    for j = 1:length(score_fields)
-        merged_muts.(score_fields{j})(:,i) = median(alldata.(score_fields{j})(:,ind),2);
-    end
-end
-
-
-% assemble cancer-mutation maps for each cancer type
-if ~exist('clin_data','var')
-    if ~exist('mut_data','var')
-        load_mutation_data  % load mutation data if not already loaded
-    end
-    load_clinical_data  % load clinical data if not already loaded
-end
-
-cancer_mut_map = {};  % initialize data structure
-for i = 1:length(c_uniq)  % iterate through cancer types
-    
-    % get list of mutations associated with current cancer type
-    m = cancer_muts(ismember(cancer_muts(:,1),c_uniq(i)),2);
-    cancer_mut_map.(c_uniq{i}).genes = m;
-    
-    % determine clinical data indices matching cancer type
-    cind = cellfind(c_uniq(i),clin_data.project_id);
-    
-    % iterate through mutated genes for current cancer type
-    add_mut_data = zeros(sum(cind),length(m));
-    for j = 1:length(m)
-        gind = ismember(clin_data.mut_genes,m(j));  % determine clinical data gene index matching mutated gene
-        add_mut_data(:,j) = clin_data.mut_data(cind,gind);  % extract mutation data for current gene and cancer type
-    end
-    cancer_mut_map.(c_uniq{i}).data = add_mut_data;
-
-end
-
-% visualize the similarity among mutated/non-mutated groups within a cancer type
-cancer_type = 'STAD';
-mutdist = class_distance(cancer_mut_map.(cancer_type).data');
-cg = RNAseq_heatmap(mutdist,cancer_mut_map.(cancer_type).genes,cancer_mut_map.(cancer_type).genes,'none','corr','hot');
-pcolor_from_clustergram(cg,mutdist,cancer_mut_map.(cancer_type).genes,cancer_mut_map.(cancer_type).genes,[],'none','jet',[0 1]);
-
-% compare similarity of mutation profile to correlation among gene-level scores
-cind = cellfind(strcat(cancer_type,'mut'),alldata.cancers);  % collect scores for only selected cancer type
-gind = any(alldata.goodavg(:,cind) > 0.8,2);  % only include genes scoring above some threshold score for the selected cancer type
-score_corr = corr(alldata.goodavg(gind,cind));  % calculate the correlation among gene-level scores for all pairs of mutations
-if ~all(strcmp(muts(cind),cancer_mut_map.(cancer_type).genes))
-    % verify that the mutation names and their ordering match between the score correlation matrix and the mutation distance matrix.
-    error('mutation map and gene-level score matrices are not properly aligned.');
-end
-x = 1 - mutdist(triu(~eye(length(mutdist))));
-y = score_corr(triu(~eye(length(score_corr))));
-plot(x,y,'o'); xlabel('mutation similarity'); ylabel('correlation of gene-level scores');
-
-
-%% Extract relevant portion of PPI network
-
-% set parameters
-genes = alldata.genes;
-map_data = [alldata.Average,mean(alldata.Average,2)];
-map_data_labels = [alldata.cancers;{'mean_all_cancers'}];
-
-% load 'InBio' PPI network data
-ppi_data_source = 'inbio';
-load_ppi_network
-
-% identify subset of PPI network involving map_genes
-keep_prots = uniprot2name(ismember(uniprot2name(:,2),genes),1);
-ind = any(ismember(ppi,keep_prots),2);  % keep PPIs involving at least one gene in list
-% ind = all(ismember(ppi,keep_prots),2);  % keep PPIs involving only genes in list
-
-% extract PPI subset
-ppi = ppi(ind,:);
-ppi_evidence = ppi_evidence(ind);
-ppi_scores = ppi_scores(ind);
-ppi_init_scores = ppi_init_scores(ind);
-
-% map data to ppi network nodes (proteins)
-ppi_nodes = unique(ppi(:));
-ppi_nodes_name = ppi_nodes;
-ppi_nodes_data = NaN(length(ppi_nodes),length(map_data_labels));
-ppi_nodes_type = repmat({'other'},size(ppi_nodes));
-h = waitbar(0,'Processing...');
-for i = 1:length(ppi_nodes)
-    % map gene names and data to protein nodes
-    % NOTE: If multiple genes correspond to a protein (UniProtID), combine
-    %       those gene names and their associated data (mean) into a single
-    %       node label and score respectively.
-    waitbar(i/length(ppi_nodes),h);
-    ind = ismember(uniprot2name(:,1),ppi_nodes(i));
-    if sum(ind) > 0
-        ppi_nodes_name(i,1) = cellcat(uniprot2name(ind,2)','/');
-        if any(ismember(uniprot2name(ind,2),alldata.genes))
-            ppi_nodes_type(i) = {'PSN_protein'};
-        end
-        ind = ismember(genes,uniprot2name(ismember(uniprot2name(:,1),ppi_nodes(i)),2));
-        ppi_nodes_data(i,:) = mean(map_data(ind,:),1);
-    end
-end
-close(h);
-[~,ind] = ismember(ppi,ppi_nodes);
-ppi_names = ppi_nodes_name(ind);
-
-
-% write txt files for cytoscape
-network_info = [{'prot1','prot2','ppi_score'};[ppi_names,num2cell(ppi_scores)]];
-writecell(network_info,'ppi_network_data.txt',true,'\t','%s\t%s\t%1.3f\n');
-
-node_info = [[{'node_name','node_type'},map_data_labels'];[ppi_nodes_name,ppi_nodes_type,num2cell(ppi_nodes_data)]];
-nodeInfoFormatSpec = cellcat([{'%s','%s'},repmat({'%1.8f'},1,size(ppi_nodes_data,2))],'\t');
-nodeInfoFormatSpec = [nodeInfoFormatSpec{1},'\n'];
-writecell(node_info,'ppi_node_data.txt',true,'\t',nodeInfoFormatSpec);
-
-
-%% Compare results to text-mined gene list
-
-
-% select term(s) of interest from below:
-%   > bladder_carcinoma
-%   > breast_cancer
-%   > breast_carcinoma
-%   > uterine_cancer
-%   > uterine_carcinoma
-%   > uterine_endometrial_carcinoma
-searchterm = {'breast_carcinoma'};
-
-% import and process ranked gene list for term of interest
-if iscell(searchterm)
-    g_mined = {};
-    for i = 1:length(searchterm)
-        tmp = importdata(strcat('/Users/jonrob/Documents/PostDoc/BigDataProject/results/text_mining/beegle_search_',searchterm{i},'.tsv'));
-        tmp = cellsplit(tmp,{'"\t"'},true);
-        g_mined = union(g_mined,tmp(2:end,2));
-    end
-else 
-    tmp = importdata(strcat('/Users/jonrob/Documents/PostDoc/BigDataProject/results/text_mining/beegle_search_',searchterm,'.tsv'));
-    tmp = cellsplit(tmp,{'"\t"'},true);
-    g_mined = unique(tmp(2:end,2));
-end
-clear tmp
-
-
-
-% test enrichment of high-scoring genes in text-mined gene list
-
-%****** specify data to analyze ******
-% gscores = alldata.goodavg(:,1);
-cancer_type = 'BRCA';
-%*************************************
-
-GSlist = [repmat({'.'},length(g_mined),1),g_mined];
-
-
-padj_nondir = []; p_nondir = [];
-for i = 1:length(alldata.modeltypes)
-    
-    fprintf('\n\nProcessing model type %u of %u.\n\n',i,length(alldata.modeltypes));
-    
-    [GSAres,gene_sets] = GeneSetAnalysis(alldata.genes,alldata.(cancer_type)(:,i),[],GSlist,'wilcoxon',10000,[1 Inf],'other');
-    
-    GSR{i,1} = GSAres;
-    
-    [~,ind] = ismember({'padj_nondir';'p_nondir'},GSAres(1,:));
-    padj_nondir(:,i) = cell2mat(GSAres(2:end,ind(1)));
-    p_nondir(:,i) = cell2mat(GSAres(2:end,ind(2)));
-    
-end
-
+% for i = 1:length(m_uniq)
+%     ind = ismember(muts,m_uniq(i));
+%     for j = 1:length(score_fields)
+%         merged_muts.(score_fields{j})(:,i) = median(alldata.(score_fields{j})(:,ind),2);
+%     end
+% end
+% 
+% 
+% % assemble cancer-mutation maps for each cancer type
+% if ~exist('clin_data','var')
+%     if ~exist('mut_data','var')
+%         load_mutation_data  % load mutation data if not already loaded
+%     end
+%     load_clinical_data  % load clinical data if not already loaded
+% end
+% 
+% cancer_mut_map = {};  % initialize data structure
+% for i = 1:length(c_uniq)  % iterate through cancer types
+%     
+%     % get list of mutations associated with current cancer type
+%     m = cancer_muts(ismember(cancer_muts(:,1),c_uniq(i)),2);
+%     cancer_mut_map.(c_uniq{i}).genes = m;
+%     
+%     % determine clinical data indices matching cancer type
+%     cind = cellfind(c_uniq(i),clin_data.project_id);
+%     
+%     % iterate through mutated genes for current cancer type
+%     add_mut_data = zeros(sum(cind),length(m));
+%     for j = 1:length(m)
+%         gind = ismember(clin_data.mut_genes,m(j));  % determine clinical data gene index matching mutated gene
+%         add_mut_data(:,j) = clin_data.mut_data(cind,gind);  % extract mutation data for current gene and cancer type
+%     end
+%     cancer_mut_map.(c_uniq{i}).data = add_mut_data;
+% 
+% end
+% 
+% % visualize the similarity among mutated/non-mutated groups within a cancer type
+% cancer_type = 'STAD';
+% mutdist = class_distance(cancer_mut_map.(cancer_type).data');
+% cg = RNAseq_heatmap(mutdist,cancer_mut_map.(cancer_type).genes,cancer_mut_map.(cancer_type).genes,'none','corr','hot');
+% pcolor_from_clustergram(cg,mutdist,cancer_mut_map.(cancer_type).genes,cancer_mut_map.(cancer_type).genes,[],'none','jet',[0 1]);
+% 
+% % compare similarity of mutation profile to correlation among gene-level scores
+% cind = cellfind(strcat(cancer_type,'mut'),alldata.cancers);  % collect scores for only selected cancer type
+% gind = any(alldata.goodavg(:,cind) > 0.8,2);  % only include genes scoring above some threshold score for the selected cancer type
+% score_corr = corr(alldata.goodavg(gind,cind));  % calculate the correlation among gene-level scores for all pairs of mutations
+% if ~all(strcmp(muts(cind),cancer_mut_map.(cancer_type).genes))
+%     % verify that the mutation names and their ordering match between the score correlation matrix and the mutation distance matrix.
+%     error('mutation map and gene-level score matrices are not properly aligned.');
+% end
+% x = 1 - mutdist(triu(~eye(length(mutdist))));
+% y = score_corr(triu(~eye(length(score_corr))));
+% plot(x,y,'o'); xlabel('mutation similarity'); ylabel('correlation of gene-level scores');
+% 
+% 
+% %% Extract relevant portion of PPI network
+% 
+% % set parameters
+% genes = alldata.genes;
+% map_data = [alldata.Average,mean(alldata.Average,2)];
+% map_data_labels = [alldata.cancers;{'mean_all_cancers'}];
+% 
+% % load 'InBio' PPI network data
+% ppi_data_source = 'inbio';
+% load_ppi_network
+% 
+% % identify subset of PPI network involving map_genes
+% keep_prots = uniprot2name(ismember(uniprot2name(:,2),genes),1);
+% ind = any(ismember(ppi,keep_prots),2);  % keep PPIs involving at least one gene in list
+% % ind = all(ismember(ppi,keep_prots),2);  % keep PPIs involving only genes in list
+% 
+% % extract PPI subset
+% ppi = ppi(ind,:);
+% ppi_evidence = ppi_evidence(ind);
+% ppi_scores = ppi_scores(ind);
+% ppi_init_scores = ppi_init_scores(ind);
+% 
+% % map data to ppi network nodes (proteins)
+% ppi_nodes = unique(ppi(:));
+% ppi_nodes_name = ppi_nodes;
+% ppi_nodes_data = NaN(length(ppi_nodes),length(map_data_labels));
+% ppi_nodes_type = repmat({'other'},size(ppi_nodes));
+% h = waitbar(0,'Processing...');
+% for i = 1:length(ppi_nodes)
+%     % map gene names and data to protein nodes
+%     % NOTE: If multiple genes correspond to a protein (UniProtID), combine
+%     %       those gene names and their associated data (mean) into a single
+%     %       node label and score respectively.
+%     waitbar(i/length(ppi_nodes),h);
+%     ind = ismember(uniprot2name(:,1),ppi_nodes(i));
+%     if sum(ind) > 0
+%         ppi_nodes_name(i,1) = cellcat(uniprot2name(ind,2)','/');
+%         if any(ismember(uniprot2name(ind,2),alldata.genes))
+%             ppi_nodes_type(i) = {'PSN_protein'};
+%         end
+%         ind = ismember(genes,uniprot2name(ismember(uniprot2name(:,1),ppi_nodes(i)),2));
+%         ppi_nodes_data(i,:) = mean(map_data(ind,:),1);
+%     end
+% end
+% close(h);
+% [~,ind] = ismember(ppi,ppi_nodes);
+% ppi_names = ppi_nodes_name(ind);
+% 
+% 
+% % write txt files for cytoscape
+% network_info = [{'prot1','prot2','ppi_score'};[ppi_names,num2cell(ppi_scores)]];
+% writecell(network_info,'ppi_network_data.txt',true,'\t','%s\t%s\t%1.3f\n');
+% 
+% node_info = [[{'node_name','node_type'},map_data_labels'];[ppi_nodes_name,ppi_nodes_type,num2cell(ppi_nodes_data)]];
+% nodeInfoFormatSpec = cellcat([{'%s','%s'},repmat({'%1.8f'},1,size(ppi_nodes_data,2))],'\t');
+% nodeInfoFormatSpec = [nodeInfoFormatSpec{1},'\n'];
+% writecell(node_info,'ppi_node_data.txt',true,'\t',nodeInfoFormatSpec);
+% 
+% 
+% %% Compare results to text-mined gene list
+% 
+% 
+% % select term(s) of interest from below:
+% %   > bladder_carcinoma
+% %   > breast_cancer
+% %   > breast_carcinoma
+% %   > uterine_cancer
+% %   > uterine_carcinoma
+% %   > uterine_endometrial_carcinoma
+% searchterm = {'breast_carcinoma'};
+% 
+% % import and process ranked gene list for term of interest
+% if iscell(searchterm)
+%     g_mined = {};
+%     for i = 1:length(searchterm)
+%         tmp = importdata(strcat('/Users/jonrob/Documents/PostDoc/BigDataProject/results/text_mining/beegle_search_',searchterm{i},'.tsv'));
+%         tmp = cellsplit(tmp,{'"\t"'},true);
+%         g_mined = union(g_mined,tmp(2:end,2));
+%     end
+% else 
+%     tmp = importdata(strcat('/Users/jonrob/Documents/PostDoc/BigDataProject/results/text_mining/beegle_search_',searchterm,'.tsv'));
+%     tmp = cellsplit(tmp,{'"\t"'},true);
+%     g_mined = unique(tmp(2:end,2));
+% end
+% clear tmp
+% 
+% 
+% 
+% % test enrichment of high-scoring genes in text-mined gene list
+% 
+% %****** specify data to analyze ******
+% % gscores = alldata.goodavg(:,1);
+% cancer_type = 'BRCA';
+% %*************************************
+% 
+% GSlist = [repmat({'.'},length(g_mined),1),g_mined];
+% 
+% 
+% padj_nondir = []; p_nondir = [];
+% for i = 1:length(alldata.modeltypes)
+%     
+%     fprintf('\n\nProcessing model type %u of %u.\n\n',i,length(alldata.modeltypes));
+%     
+%     [GSAres,gene_sets] = GeneSetAnalysis(alldata.genes,alldata.(cancer_type)(:,i),[],GSlist,'wilcoxon',10000,[1 Inf],'other');
+%     
+%     GSR{i,1} = GSAres;
+%     
+%     [~,ind] = ismember({'padj_nondir';'p_nondir'},GSAres(1,:));
+%     padj_nondir(:,i) = cell2mat(GSAres(2:end,ind(1)));
+%     p_nondir(:,i) = cell2mat(GSAres(2:end,ind(2)));
+%     
+% end
+% 
+% 
 
 
 
