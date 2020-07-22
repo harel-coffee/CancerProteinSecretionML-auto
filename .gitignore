@@ -20,7 +20,13 @@ Thumbs.db
 # csv files
 *.csv
 
-# anything in the results/ subdirectory
+# pdf files
+*.pdf
+
+# keynote files
+*.key
+
+# anything in specific subdirectories
 /results
 
 # R data file
@@ -29,8 +35,7 @@ Thumbs.db
 # h5 data store files
 *.h5
 
-# log files and result files
-*.log
+# excel files
 *.xlsx
 
 # Windows executable files
