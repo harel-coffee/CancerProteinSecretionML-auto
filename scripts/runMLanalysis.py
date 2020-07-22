@@ -19,7 +19,7 @@ proj_dir = os.path.dirname(os.getcwd())
 #==============================================================================
 
 # specify type of data to use: 'gene', 'reaction_geomean', 'reaction_median'
-dataType = 'reaction_geomean'
+dataType = 'gene'
 
 # all available cancer types
 allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
@@ -30,13 +30,13 @@ allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
 
 # ClassVar options: 'CancerStatus','TumorStage','TumorStageMerged','TumorStageBinary',
 #                   'OverallSurvival','Race','Gender','Barcode','Mutations',
-#                   'HyperMut','HyperMutBinary','AllTumorCombos'
-ClassVar = 'Mutations'
+#                   'HyperMut','HyperMutBinary','AllStageCombos'
+ClassVar = 'AllStageCombos'
 
 # Select which levels of the class variable to keep.
 # VarLevelsToKeep = ['Low','Hypermutant']
 # VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']
-VarLevelsToKeep = ['FALSE', 'TRUE']
+# VarLevelsToKeep = ['FALSE', 'TRUE']
 # VarLevelsToKeep = ['stage iv','stage x']
 # VarLevelsToKeep = ['stage i-iii','stage iv']
 
@@ -122,14 +122,14 @@ for CancerType in allCancerTypes:
             resultsPath = proj_dir + '/' + output_dir + '/'
             OF.writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, mutClassVar, VarLevelsToKeep, resultsPath)
 
-    elif ClassVar == 'AllTumorCombos':
+    elif ClassVar == 'AllStageCombos':
         all_tumor_combinations = [['stage i', 'stage ii'], ['stage i', 'stage iii'], ['stage i', 'stage iv'], \
                                   ['stage i', 'stage x'], ['stage ii', 'stage iii'], ['stage ii', 'stage iv'], \
                                   ['stage ii', 'stage x'], ['stage iii', 'stage iv'], ['stage iii', 'stage x'], \
                                   ['stage iv', 'stage x']]
-        for tumor_combo in all_tumor_combinations:
+        for stage_combo in all_tumor_combinations:
             ClassVar = 'TumorStageMerged'
-            VarLevelsToKeep = tumor_combo
+            VarLevelsToKeep = stage_combo
             if (CancerType) in os.listdir(proj_dir + '/' + output_dir):
                 file_name_piece = '_'.join(['TumorStage'] + VarLevelsToKeep)
                 file_name_piece = file_name_piece.replace(' ','')
@@ -156,7 +156,7 @@ for CancerType in allCancerTypes:
             OF.writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, ClassVar, VarLevelsToKeep, resultsPath)
         
         # re-assign class variable after looping
-        ClassVar = 'AllTumorCombos'
+        ClassVar = 'AllStageCombos'
         
     else: 
         if (CancerType) in os.listdir(proj_dir + '/' + output_dir):
