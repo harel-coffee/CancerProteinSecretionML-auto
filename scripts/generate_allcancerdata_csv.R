@@ -47,7 +47,7 @@ generate_allcancerdata_csv <- function(gene_list=NULL, sample_vars=NULL, file_na
   }
   
   # load RNA-Seq data
-  message(paste('Loading RNA-Seq (',count_type,') data... ',sep = ''), appendLF = FALSE)
+  message('Loading RNA-Seq data... ')
   allcancer.data <- readRDS(file.path(main_dir, 'data', 'TCGA_data_tpm.rds'))
   message('Done.')
   
@@ -183,8 +183,8 @@ generate_allcancerdata_csv <- function(gene_list=NULL, sample_vars=NULL, file_na
   
   # write to csv and/or rds
   if (!is.null(file_name)) {
-    write.csv(count_data, file = paste(file_name,'.csv',sep=''), quote = TRUE)
-    saveRDS(count_data, file = paste(file_name,'.rds',sep=''))
+    write.csv(count_data, file=file.path(main_dir, 'data', paste0(file_name,'.csv')), quote = TRUE)
+    saveRDS(count_data, file=file.path(main_dir, 'data', paste0(file_name,'.rds')))
   } else {
     return(count_data)
   }
