@@ -1,4 +1,4 @@
-CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels=NULL, gene=NULL) {
+CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels=NULL, gene=NULL, main_dir=NULL) {
   # Run a differential expression analysis using edgeR.
   #
   # Input:
@@ -23,16 +23,20 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   #                   If a gene name is specified, then the expression of that gene in the
   #                   two groups will be visualized with a plot.
   #
+  #   main_dir        Path to the CancerProteinSecretionML directory.
+  #                   e.g., 'usr/yourname/Documents/CancerProteinSecretionML'
   #
-  # Jonathan Robinson, 2019-08-07
 
+  if (is.null(main_dir)) {
+    stop('You must specify the path to the main CancerProteinSecretionML directory!')
+  }
+  
   library(edgeR)
   library(ggplot2)
   library(SummarizedExperiment)
-  setwd("/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML")
-    
+  
   # Load annotation data
-  annotData <- readRDS('/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML/data/allcancerdata_psp.rds')
+  annotData <- readRDS(file.path(main_dir, 'data', 'allcancerdata_psp.rds'))
   
   # obtain/verify list of cancer types to analyze
   annotData$Project <- sub('TCGA-', '', annotData$Project)  # remove 'TCGA-' prefix from cancer codes
@@ -112,18 +116,8 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
       theme(axis.text.x=element_blank(),
             axis.ticks.x=element_blank())
     
-    # generate violin plot
-    # p <- ggplot(plot_data, aes_string(x=classVar, y=gene, fill=classVar)) + 
-    #   geom_violin(trim=F) +
-    #   ylab(paste(gene,'log(TPM+1)')) +
-    #   facet_grid(. ~ Project) +
-    #   geom_boxplot(width=0.1, fill='white', outlier.size=0.5) +
-    #   theme(axis.text.x=element_blank(),
-    #         axis.ticks.x=element_blank())
-    
     return(p)
   }
-  
   
   # iterate through cancer types
   for (cType in cancerType) {
@@ -134,8 +128,7 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
     }
     
     # loads raw counts as SummarizedExperiment object named 'data'
-    load(paste('/Users/jonrob/Documents/PostDoc/TheCancerGenomeAtlas/RNAseqNEW_data/RawCounts_RData/',
-               cType, '_raw_counts.RData', sep=''))
+    data <- readRDS(file.path(main_dir, 'data', 'TCGA_data_rawcounts', paste0(cType, '_raw_counts.rds')))
     
     # extract relevant data subset
     keepCols <- data$barcode %in% c(L1_barcodes, L2_barcodes)
@@ -146,11 +139,6 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
     count_data <- assay(data[, keepCols])  # count dataframe with barcodes as colnames
     geneNames <- rowData(data)$external_gene_name
     rm(data)  # no longer need this variable
-    
-    # # remove non-PSP genes
-    # keepGenes <- geneNames %in% pspGenes
-    # count_data <- count_data[keepGenes, ]
-    # geneNames <- geneNames[keepGenes]
     
     # create DGEList object from count_data
     y <- DGEList(counts=count_data)
@@ -193,11 +181,14 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
     } else {
       file_name_piece <- paste(cType, classVar, 'DEresults.txt', sep='_')
     }
-    res.filename <- paste('results/', cType, '/', file_name_piece, sep='')
+    res.filename <- file.path(main_dir, 'results', cType, file_name_piece)
+    
+    
     write.table(res.table, file=res.filename, quote=F, sep='\t', row.names=F)
     
-  } # end for loop through cancer types
-  
-  
+  }
   
 }
+
+
+

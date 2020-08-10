@@ -1,14 +1,20 @@
-# script to run DE analysis on all mutation class variables and cancer types, as well as all tumor stage combinations.
+# script to run DE analysis on all available mutation class variables and
+# cancer types, as well as all available tumor stage combinations.
 
 
-source('/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML/scripts/CancerDiffExpAnalysis.R')
-setwd("/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML")
+##### SPECIFY LOCATION OF THE CancerProteinSecretionML DIRECTORY #####
+main_dir <- "/usr/yourname/Documents/CancerProteinSecretionML"
+######################################################################
+
+
+# source DE function
+source(file.path(main_dir, 'scripts', 'CancerDiffExpAnalysis.R'))
 
 # get list of all available cancer types
-allCancerTypes <- CancerDiffExpAnalysis()
+allCancerTypes <- CancerDiffExpAnalysis(main_dir=main_dir)
 
 # get list of all available mutation class variables
-allClassVars <- CancerDiffExpAnalysis(cancerType='all')
+allClassVars <- CancerDiffExpAnalysis(cancerType='all', main_dir=main_dir)
 mutClassVars <- allClassVars[substr(allClassVars,1,3) == 'mut']
 
 
@@ -22,7 +28,7 @@ for (cancer in allCancerTypes) {
     }
     # run analysis
     message('Analyzing ', mutVar, ' in cancer type ', cancer, '.')
-    CancerDiffExpAnalysis(cancerType=cancer, classVar=mutVar, classVarLevels=c('FALSE', 'TRUE'))
+    CancerDiffExpAnalysis(cancerType=cancer, classVar=mutVar, classVarLevels=c('FALSE', 'TRUE'), main_dir=main_dir)
   }
 }
 
@@ -40,13 +46,13 @@ for (cancer in allCancerTypes) {
     }
     # run analysis
     message('Analyzing ', paste(sp, collapse=' vs. '), ' in cancer type ', cancer, '.')
-    CancerDiffExpAnalysis(cancerType=cancer, classVar='TumorStageMerged', classVarLevels=sp)
+    CancerDiffExpAnalysis(cancerType=cancer, classVar='TumorStageMerged', classVarLevels=sp, main_dir=main_dir)
   }
 }
 
 
 # evaluate TumorStageBinary for all cancer types
-CancerDiffExpAnalysis(cancerType='all', classVar='TumorStageBinary', classVarLevels=c('stage i-iii','stage iv'))
+CancerDiffExpAnalysis(cancerType='all', classVar='TumorStageBinary', classVarLevels=c('stage i-iii','stage iv'), main_dir=main_dir)
 
 
 
