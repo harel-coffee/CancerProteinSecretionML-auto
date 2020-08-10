@@ -28,6 +28,7 @@ Thumbs.db
 
 # unused result directories
 /results_*
+/scripts/old_unused
 
 # R data file
 *.rds
