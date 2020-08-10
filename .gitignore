@@ -44,3 +44,6 @@ Thumbs.db
 
 # Windows dynamic library files
 *.dll
+
+# manuscript files
+/doc/manuscript
