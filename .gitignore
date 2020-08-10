@@ -26,9 +26,17 @@ Thumbs.db
 # keynote files
 *.key
 
-# unused result directories
+# old or unused directories
 /results_*
-/scripts/old_unused
+/*/old_unused
+
+# large data files
+TCGA_data*
+allcancerdata*
+CancerDataStore*
+
+# manuscript files
+/doc/manuscript
 
 # R data file
 *.rds
@@ -45,6 +53,3 @@ Thumbs.db
 
 # Windows dynamic library files
 *.dll
-
-# manuscript files
-/doc/manuscript
