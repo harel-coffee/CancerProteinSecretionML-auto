@@ -10,12 +10,12 @@ results_dir = 'results';  % 'results', 'results_rxnScores_geomean', 'results_rxn
 group_by = 'model';  % 'cancer' or 'model'
 filter_by = 'rocauc';  % 'rocauc' or 'accuracy'
 filter_models = {}; %{'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';'XGBClassifier';'SVC';'LassoRegression';'RidgeRegression'};  % list of models to include in the average model score used for filtering (leave empty to include all)
-filter_thresh = 0; %0.75;  % average model score necessary to include cancer
+filter_thresh = 0;  % average model score necessary to include cancer
 scale_by_rocauc = false;  % if TRUE, then gene-level scores will be scaled by the ROC AUC
                          % according to the following formula:
                          % scaled_score = score * (2*ROCAUC - 1)
 
-select_dataset = 'mutTP53';
+select_dataset = 'allstages';
 % WARNING: Case-sensitive!
 %
 %   'CancerStatus': cancer status (normal vs. tumor)
@@ -34,6 +34,11 @@ select_dataset = 'mutTP53';
 %
 %   'allstages': load all available tumor stage comparisons
 
+all_cancers = {'ACC';'BLCA';'BRCA';'CESC';'CHOL';'COAD';'DLBC';'ESCA';'GBM';'HNSC';'KICH';'KIRC';'KIRP';'LAML';'LGG';'LIHC';'LUAD';'LUSC';'MESO';'OV';'PAAD';'PCPG';'PRAD';'READ';'SARC';'SKCM';'STAD';'TGCT';'THCA';'THYM';'UCEC';'UCS';'UVM'};
+exclude_cancers = setdiff(all_cancers, {'KIRP';'ACC';'TGCT';'THCA';'KIRC'});
+% exclude_cancers = setdiff(all_cancers, {'ACC';'BLCA';'COAD';'KICH';'KIRC';'KIRP';'PAAD';'STAD';'TGCT';'THCA'});
+% exclude_cancers = setdiff(all_cancers, {'BRCA'});
+% exclude_cancers = {'PAAD';'SKCM';'UVM'};
 exclude_cancers = {};
 switch lower(select_dataset)
     case 'allmuts'
@@ -160,6 +165,14 @@ end
 fprintf('Done.\n');
 alldata.genes = genes;
 
+% add gene modules and subsystems
+if strcmpi(results_dir, 'results')
+    gene_info = readtable(strcat(proj_dir, 'data/PSPgenes.txt'));
+    [~,ind] = ismember(genes, gene_info.name);
+    alldata.modules = gene_info.module(ind);
+    alldata.subsystems = gene_info.subsystem(ind);
+end
+
 % identify cancers with poor model scores
 if ~isempty(modelscores)
     
@@ -177,7 +190,7 @@ if ~isempty(modelscores)
     
     % add poor-scoring cancers to 'exclude' list
     exclude_cancers = unique([exclude_cancers; cancers(meanscores < filter_thresh)]);
-    rem_ind = ismember(cancers,exclude_cancers);
+    rem_ind = startsWith(cancers,exclude_cancers);
     
     % remove score data associated with poor-scoring cancers
     scorefields = fields(modelscores);
@@ -189,7 +202,7 @@ if ~isempty(modelscores)
 end
 
 % remove remaining data for excluded cancers
-rem_ind = ismember(cancers,exclude_cancers);
+rem_ind = startsWith(cancers,exclude_cancers);
 cancers(rem_ind) = [];
 xdata(rem_ind) = [];
 xtext(rem_ind) = [];
@@ -338,6 +351,7 @@ clearvars -except alldata
 f = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
     'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LassoRegression';
     'RidgeRegression';'log10DEfdr';'absDElogfc'};
+f = intersect(f, fieldnames(alldata));
 
 % iterate through cancer types
 C = zeros(numel(f), numel(f), numel(alldata.cancers));  % initialize
@@ -403,7 +417,7 @@ end
 % tsne_coords = tsne(mergedData', 'NumDimensions', 2, 'Perplexity', 10);
 
 % run UMAP
-[reduction,umap] = run_umap(mergedData', 'n_neighbors', 15, 'n_components', 2, ...
+[reduction,umap] = run_umap(mergedData', 'n_neighbors', 10, 'n_components', 2, ...
     'verbose', 'none', 'metric', 'euclidean');
 
 % plot results
@@ -445,16 +459,16 @@ genHeatMap(alldata.modelscores.rocauc', 'colNames', alldata.modelscores.names, .
 %% Visualize top-scoring genes across all models and all cancer types
 
 % specify parameters
-min_gene_score = 10;  % min gene score to include gene and/or cancer
+min_gene_score = 5;  % min gene score to include gene and/or cancer
 score_method = 'top_mean';  % 'min', 'mean', 'median', 'top_mean', 'top_median', 'top_each'
 model_type = 'Average';  % name of model (e.g., 'XGBClassifier'), or 'Average'
 cmap = flipud(custom_cmap('whitemagma'));  % colormap
 
 % filter genes and cancer types
-cind = true(size(alldata.cancers));
+cind = 1:numel(alldata.cancers);
 switch score_method
     case 'min'
-%         cind = any(alldata.(model_type) > min_gene_score, 1);  % optional cancer type filtration
+%         cind = find(any(alldata.(model_type) > min_gene_score, 1));  % optional cancer type filtration
         gind = any(alldata.(model_type) > min_gene_score, 2);
     case 'mean'
         gind = mean(alldata.(model_type), 2) > min_gene_score;
@@ -470,11 +484,19 @@ switch score_method
         [~,sort_ind] = sort(alldata.(model_type), 1, 'descend');
         gind = unique(sort_ind(1:min_gene_score, :));
 end
-
+% [~,cind] = ismember({'COAD';'KICH';'READ';'STAD';'THCA'}, alldata.cancers);
 
 % generate heatmap
-genHeatMap(alldata.(model_type)(gind,cind), 'colNames', alldata.cancers(cind), ...
-    'rowNames', alldata.genes(gind), 'colorMap', cmap, 'gridColor', 'k');
+sort_along_diag = false;  % use custom clustering option
+if (sort_along_diag)
+    [row_ind, col_ind] = sort_diag(alldata.(model_type)(gind,cind), min_gene_score);
+    genHeatMap(alldata.(model_type)(gind(row_ind),cind(col_ind)), 'colNames', ...
+        alldata.cancers(cind(col_ind)), 'rowNames', alldata.genes(gind(row_ind)), ...
+        'colorMap', cmap, 'gridColor', 'k', 'clusterDim', 'none');
+else
+    genHeatMap(alldata.(model_type)(gind,cind), 'colNames', alldata.cancers(cind), ...
+        'rowNames', alldata.genes(gind), 'colorMap', cmap, 'gridColor', 'k');
+end
 set(gca, 'FontSize', 12);
 
 
@@ -494,12 +516,12 @@ set(gca, 'XLim', [0 xl(2)]);
 %% Visualize top-scoring genes across models within ONE CANCER type
 
 % specify parameters
-min_gene_score = 0.25;  % min gene score to include gene
-score_method = 'mean';  % 'min', 'mean', or 'median'
-cancer_type = 'SKCM';
+min_gene_score = 5;  % min gene score to include gene
+score_method = 'top_mean';  % 'min', 'mean', 'median', or 'top_mean'
+cancer_type = 'PAAD-stage1v2';
 f = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
      'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LassoRegression';
-     'RidgeRegression';'Average';'log10DEfdr'};
+     'RidgeRegression'};%;'Average';'log10DEfdr'};
 f = intersect(f, fieldnames(alldata), 'stable');
 
 % collect data for selected cancer type
@@ -516,6 +538,9 @@ elseif strcmpi(score_method,'mean')
     gind = mean(sel_data, 2) > min_gene_score;
 elseif strcmpi(score_method,'median')
     gind = median(sel_data, 2) > min_gene_score;
+elseif strcmpi(score_method,'top_mean')
+    [~,sort_ind] = sort(alldata.Average(:,cancer_ind), 'descend');
+    gind = sort_ind(1:min_gene_score);
 end
 
 % generate heatmap
@@ -537,10 +562,10 @@ set(gca,'YTickLabel', genenames, 'YTick', 1:numel(genenames));
 %% Visualize scores for ONE GENE across models and cancer types
 
 % specify gene name and model types to examine
-gene = 'CRYAB';  % specify gene name
+gene = 'RAB17';  % specify gene name
 f = {'ExtraTreesClassifier';'RandomForestClassifier';'AdaBoostClassifier';
     'XGBClassifier';'LinearDiscriminantAnalysis';'SVC';'LassoRegression';
-    'RidgeRegression';'log10DEfdr'};
+    'RidgeRegression'};%;'log10DEfdr'};
 f = intersect(f, fieldnames(alldata));
 
 % collect gene scores across cancer and model types
@@ -559,7 +584,7 @@ genHeatMap(gene_scores, 'colNames', f, 'rowNames', alldata.cancers, ...
 %% Visualize top-scoring genes for ONE MODEL across cancer types
 
 model_type = 'log10DEfdr';  % specify model name
-min_gene_score = 20;
+min_gene_score = 10;
 score_method = 'top_mean'; %'min', 'mean', 'median', 'top_mean', 'top_median', 'top_each'
 
 % filter genes and cancer types
@@ -597,11 +622,13 @@ genenames = genenames(sort_gene_ind);
 figure
 boxplot(plotdata, 'PlotStyle', 'compact', 'Orientation', 'horizontal', 'Colors', 'k');
 set(gca,'YTickLabel', genenames, 'YTick', 1:numel(genenames), 'FontSize', 12);
+xl = xlim(gca);
+set(gca, 'XLim', [-0.05 xl(2)]);
 
 
 %% Visualize DE logFC and p-val for top-scoring genes across cancer types
 
-model_type = 'log10DEfdr';  % specify how to choose the top genes
+model_type = 'Average';  % specify how to choose the top genes
 min_gene_score = 10;
 score_method = 'top_mean'; %'min', 'mean', 'median', 'top_mean', 'top_median', 'top_each'
 
@@ -625,13 +652,80 @@ switch score_method
 end
 
 % Alternative: specify genes by name
-% gind = find(startsWith(alldata.genes, 'CRY'));
+gind = find(startsWith(alldata.genes, 'HAS'));
 
 % generate heatscatter plot
 cmap = custom_cmap('redblue');
 genHeatScatter(-log10(alldata.DEfdr(gind,:)), alldata.DElogfc(gind,:), ...
     'colNames', alldata.cancers, 'rowNames', alldata.genes(gind), ...
-    'colorMap', cmap, 'sizeBounds', [0 5], 'colorBounds', [-2 2]);
+    'colorMap', cmap, 'sizeBounds', [0 10], 'colorBounds', [-2 2]);
+
+
+%% Test module and subsystem enrichment in top-scoring genes for each cancer
+
+model_type = 'Average';  % specify how to choose the top genes
+n_genes = 5;  % top N scoring genes to include
+
+% iterate through cancer types
+module_gene = [alldata.modules, alldata.genes];
+subsystem_gene = [alldata.subsystems, alldata.genes];
+for i = 1:numel(alldata.cancers)
+
+    [~,sort_ind] = sort(alldata.(model_type)(:,i), 1, 'descend');
+    gind = sort_ind(1:n_genes);
+    
+    gsea_module = GeneSetEnrichAnalysis(alldata.genes(gind), module_gene);
+    gsea_subsystem = GeneSetEnrichAnalysis(alldata.genes(gind), subsystem_gene);
+    
+    if i == 1
+        gsea_module_all = gsea_module(1,:);
+        gsea_subsystem_all = gsea_subsystem(1,:);
+    end
+    
+    gsea_module(:,1) = strcat(alldata.cancers{i}, '-', gsea_module(:,1));
+    gsea_subsystem(:,1) = strcat(alldata.cancers{i}, '-', gsea_subsystem(:,1));
+    
+    gsea_module_all = [gsea_module_all; gsea_module(2:end,:)];
+    gsea_subsystem_all = [gsea_subsystem_all; gsea_subsystem(2:end,:)];
+
+end
+
+
+%% Compare model ROC AUC scores for tumor stages grouped by cancer
+
+% average scores by cancer type
+cancers = unique(regexprep(alldata.cancers, '-stage.+$', ''));
+rocauc = zeros(size(alldata.modelscores.rocauc,1), numel(cancers));
+rocauc_mean = zeros(numel(cancers), 1);
+for i = 1:numel(cancers)
+    cind = find(startsWith(alldata.cancers, cancers{i}));
+    rocauc(:,i) = mean(alldata.modelscores.rocauc(:,cind),2);
+end
+
+% generate boxplots (group by cancer type)
+figure;
+[~,sort_ind] = sort(-median(rocauc,1));
+if size(rocauc, 2) > 20
+    boxplot(rocauc(:,sort_ind), 'PlotStyle', 'compact', 'Colors', 'k');
+else
+    boxplot(rocauc(:,sort_ind), 'Symbol', 'ko', 'Jitter', 0.25);
+end
+set(gca,'XTick',1:numel(cancers),'XTickLabel',cancers(sort_ind),'XTickLabelRotation',90);
+
+% generate boxplots (group by model type)
+figure;
+[~,sort_ind] = sort(-median(rocauc,2));
+if size(rocauc, 1) > 20
+    boxplot(rocauc(sort_ind,:)', 'PlotStyle', 'compact', 'Colors', 'k');
+else
+    boxplot(rocauc(sort_ind,:)', 'Symbol', 'ko', 'Jitter', 0.25);
+end
+set(gca,'XTickLabel',alldata.modelscores.names(sort_ind),'XTickLabelRotation',90);
+
+% generate heatmap
+cmap = flipud(custom_cmap('whitemagma'));
+genHeatMap(rocauc', 'colNames', alldata.modelscores.names, ...
+    'rowNames', cancers, 'colorMap', cmap, 'gridColor', 'k');
 
 
 %% Compare model ROC AUC scores among different cancer types and mutations
