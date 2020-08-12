@@ -18,40 +18,19 @@ proj_dir = os.path.dirname(os.getcwd())
 # Analysis Parameters
 #==============================================================================
 
-# specify type of data to use: 'gene', 'reaction_geomean', 'reaction_median'
-dataType = 'gene'
+# ClassVar options: 'mutTP53', 'CancerStatus', 'TumorStageMerged',
+#                   'Race', 'Gender', 'Mutations', 'AllStageCombos'
+ClassVar = 'CancerStatus'
 
-# all available cancer types
-allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
-                  'ESCA', 'GBM', 'HNSC', 'KICH', 'KIRC', 'KIRP', 'LGG', 
-                  'LIHC', 'LUAD', 'LUSC', 'MESO', 'OV', 'PAAD', 'PCPG',
-                  'PRAD', 'READ', 'SARC', 'SKCM', 'STAD', 'TGCT', 'THCA',
-                  'THYM', 'UCEC', 'UCS', 'UVM']
-
-# ClassVar options: 'CancerStatus','TumorStage','TumorStageMerged','TumorStageBinary',
-#                   'OverallSurvival','Race','Gender','Barcode','Mutations',
-#                   'HyperMut','HyperMutBinary','AllStageCombos'
-ClassVar = 'AllStageCombos'
-
-# Select which levels of the class variable to keep.
-# VarLevelsToKeep = ['Low','Hypermutant']
-# VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']
-# VarLevelsToKeep = ['FALSE', 'TRUE']
-# VarLevelsToKeep = ['stage iv','stage x']
-# VarLevelsToKeep = ['stage i-iii','stage iv']
+# Select which levels of the class variable to keep. Not needed for classVar='AllStageCombos'
+VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']  # for 'CancerStatus'
+# VarLevelsToKeep = ['FALSE', 'TRUE']  # for 'mutTP53' or 'Mutations'
+# VarLevelsToKeep = ['stage iv','stage x']  # for 'TumorStageMerged'
 
 # specify offset to add to TPM values before log-transforming (to handle zeros)
 logTransOffset = 1  # transformed TPM = log(TPM + offset)
 
-# dimensionality reduction options
-dimReduction = False  # True or False
-
-# if dimReduction is False, the following two variables are NOT used:
-dimRedMethod = 'numSigCancers' # 'signifDEgenes' or 'numSigCancers'
-numSigCancers = 10  # Number of cancers in which gene must be significant 
-
-# if dimReduction is False, there is option to remove low-TPM genes by
-# specifying the med_tpm_threshold parameter:
+# Optional removal of low-TPM genes by specifying the med_tpm_threshold parameter:
 #  'none' - don't remove any genes.
 #  'zero' - remove genes with all zeros.
 #  'X%' - where X is a number from 0 to 100, removes genes with median TPM
@@ -61,19 +40,17 @@ med_tpm_threshold = 0.1
 
 
 #==============================================================================
-# Define some paths
+# Define some paths and other run settings
 #==============================================================================
 
-if dataType == 'gene':
-    dataStoreFile = 'CancerDataStore_psp.h5'
-    output_dir = 'results'
-elif dataType == 'reaction_geomean':
-    dataStoreFile = 'rxnscoredata_geomean.h5'
-    output_dir = 'results_rxnScores_geomean'
-elif dataType == 'reaction_median':
-    dataStoreFile = 'rxnscoredata_median.h5'
-    output_dir = 'results_rxnScores_median'
-
+dataStoreFile = 'CancerDataStore_psp.h5'
+output_dir = 'results'
+dimReduction = False
+allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
+                  'ESCA', 'GBM', 'HNSC', 'KICH', 'KIRC', 'KIRP', 'LGG', 
+                  'LIHC', 'LUAD', 'LUSC', 'MESO', 'OV', 'PAAD', 'PCPG',
+                  'PRAD', 'READ', 'SARC', 'SKCM', 'STAD', 'TGCT', 'THCA',
+                  'THYM', 'UCEC', 'UCS', 'UVM']
 
 #%%
 #==============================================================================
