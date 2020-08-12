@@ -138,6 +138,47 @@ rm(list=setdiff(ls(), c('proj_dir', 'expdata', 'allscores', 'fig_dir', 'gene_dat
 invisible(gc())
 
 
+# ###########################################################
+# ### Export data to text file (for supplementary tables) ###
+# ###########################################################
+# supp_dir <- '/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML/doc/manuscript/supp_tables'
+# 
+# write.table(as.data.frame(allscores$cancerStatus$Average) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'ConsensusMLGeneScores_CancerStatus.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$mutTP53$Average) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'ConsensusMLGeneScores_mutTP53.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$tumorStage$Average) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'ConsensusMLGeneScores_tumorStage.txt'), sep='\t', row.names=F)
+# 
+# write.table(as.data.frame(allscores$cancerStatus$DE_log2FC) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'DE_log2FC_CancerStatus.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$mutTP53$DE_log2FC) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'DE_log2FC_mutTP53.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$tumorStage$DE_log2FC) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'DE_log2FC_tumorStage.txt'), sep='\t', row.names=F)
+# 
+# write.table(as.data.frame(allscores$cancerStatus$DE_FDR) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'DE_FDR_CancerStatus.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$mutTP53$DE_FDR) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'DE_FDR_mutTP53.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$tumorStage$DE_FDR) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'DE_FDR_tumorStage.txt'), sep='\t', row.names=F)
+# 
+# write.table(as.data.frame(allscores$cancerStatus$DE_FDRscore) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'DE_FDRscore_CancerStatus.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$mutTP53$DE_FDRscore) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'DE_FDRscore_mutTP53.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$tumorStage$DE_FDRscore) %>% rownames_to_column('Gene'),
+#             file=file.path(supp_dir, 'DE_FDRscore_tumorStage.txt'), sep='\t', row.names=F)
+# 
+# write.table(as.data.frame(allscores$cancerStatus$roc_auc) %>% rownames_to_column('ML algorithm'),
+#             file=file.path(supp_dir, 'ROCAUC_CancerStatus.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$mutTP53$roc_auc) %>% rownames_to_column('ML algorithm'),
+#             file=file.path(supp_dir, 'ROCAUC_mutTP53.txt'), sep='\t', row.names=F)
+# write.table(as.data.frame(allscores$tumorStage$roc_auc) %>% rownames_to_column('ML algorithm'),
+#             file=file.path(supp_dir, 'ROCAUC_tumorStage.txt'), sep='\t', row.names=F)
+
+
 
 ####################################################################
 ### Fig. 1, toy heatmap demonstrating consensus scoring approach ###
@@ -698,7 +739,7 @@ invisible(dev.off())
 
 # specify parameters
 classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
-gene_start <- 'VAMP'  # e.g., 'KIF', 'VAMP', 'STX', etc.
+gene_start <- 'KIF'  # e.g., 'KIF', 'VAMP', 'STX', etc.
 dist_metric <- 'euclidean'
 
 # prepare data
@@ -958,7 +999,7 @@ if (classVar == 'CancerStatus') {
 }
 
 # add column specifying DE direction
-DE_labels <- c('Decreased', 'Unchanged', 'Increased')
+DE_labels <- c('Decreased', 'Not Significant', 'Increased')
 dat$DE <- NA
 dat$DE[dat$Project %in% cancers_down] <- DE_labels[1]
 dat$DE[dat$Project %in% cancers_ns] <- DE_labels[2]
@@ -969,11 +1010,17 @@ dat$DE <- factor(dat$DE, levels=DE_labels, ordered=T)
 dat <- pivot_longer(dat, cols=all_of(gene), names_to='Gene', values_to='CRYAB log2(TPM)')
 
 # generate plot
+pal <- brewer.pal(9, 'YlOrRd')[c(1,8)]
+pdf(paste0(fig_dir, '/CRYAB_expression_boxplot.pdf'), height=3, width=10)
 ggplot(dat, aes_string(x="Project", y="`CRYAB log2(TPM)`", fill=classVar)) +
-  geom_boxplot() + 
+  geom_boxplot(color='black') + 
   facet_grid(. ~ DE, scales='free_x', space='free_x') +
-  scale_fill_manual(values=c("#c7d6ff", "#4f79e8"))
-
+  scale_fill_manual(values=pal) +
+  theme_bw() +
+  theme(axis.text=element_text(size=10, color='black'),
+        strip.text=element_text(size=11, color='black')) +
+  xlab('Cancer type')
+invisible(dev.off())
 
 
 #####################################################################
@@ -1015,7 +1062,6 @@ new_levels <- c('Normal', 'Stage I', 'Stage II', 'Stage III', 'Stage IV')
 dat$TumorStageMerged <- new_levels[match(dat$TumorStageMerged, classLevels)]
 
 # add column specifying cancer group (renal or non-renal)
-DE_labels <- c('Decreased', 'Unchanged', 'Increased')
 dat$renal <- 'Other'
 dat$renal[dat$Project %in% c('KIRC','KIRP','KICH')] <- 'Renal Carcinomas'
 dat$renal <- factor(dat$renal, levels=c('Renal Carcinomas', 'Other'), ordered=T)
