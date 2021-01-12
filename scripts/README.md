@@ -5,7 +5,7 @@ This directory contains the scripts to perform the analyses described in the man
 
 ## Re-run the ML analysis
 
-The `runMLanalysis.py` script is used to re-run the machine learning analysis and generate gene scores and ROC AUC values. The [conda environment file](../environment.yml) necessary to run this script can be found in the top-level directory of this repository.
+The `runMLanalysis.py` script is used to re-run the machine learning analysis and generate gene scores and ROC AUC values. The [python conda environment file](../environment_python.yml) necessary to run this script can be found in the top-level directory of this repository. Ensure that the environment is activated prior to running any of the scripts (`conda activate psp-cancer-py`).
 
 *NOTE!* The script will check if results already exist in the `results/` directory of the repository, and will skip the analysis if the same result file exists. Therefore, to regenerate the results, first delete the existing output present in the `results/` directory.
 
