@@ -138,47 +138,6 @@ rm(list=setdiff(ls(), c('proj_dir', 'expdata', 'allscores', 'fig_dir', 'gene_dat
 invisible(gc())
 
 
-# ###########################################################
-# ### Export data to text file (for supplementary tables) ###
-# ###########################################################
-# supp_dir <- '/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML/doc/manuscript/supp_tables'
-# 
-# write.table(as.data.frame(allscores$cancerStatus$Average) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'ConsensusMLGeneScores_CancerStatus.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$mutTP53$Average) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'ConsensusMLGeneScores_mutTP53.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$tumorStage$Average) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'ConsensusMLGeneScores_tumorStage.txt'), sep='\t', row.names=F)
-# 
-# write.table(as.data.frame(allscores$cancerStatus$DE_log2FC) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'DE_log2FC_CancerStatus.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$mutTP53$DE_log2FC) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'DE_log2FC_mutTP53.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$tumorStage$DE_log2FC) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'DE_log2FC_tumorStage.txt'), sep='\t', row.names=F)
-# 
-# write.table(as.data.frame(allscores$cancerStatus$DE_FDR) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'DE_FDR_CancerStatus.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$mutTP53$DE_FDR) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'DE_FDR_mutTP53.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$tumorStage$DE_FDR) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'DE_FDR_tumorStage.txt'), sep='\t', row.names=F)
-# 
-# write.table(as.data.frame(allscores$cancerStatus$DE_FDRscore) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'DE_FDRscore_CancerStatus.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$mutTP53$DE_FDRscore) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'DE_FDRscore_mutTP53.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$tumorStage$DE_FDRscore) %>% rownames_to_column('Gene'),
-#             file=file.path(supp_dir, 'DE_FDRscore_tumorStage.txt'), sep='\t', row.names=F)
-# 
-# write.table(as.data.frame(allscores$cancerStatus$roc_auc) %>% rownames_to_column('ML algorithm'),
-#             file=file.path(supp_dir, 'ROCAUC_CancerStatus.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$mutTP53$roc_auc) %>% rownames_to_column('ML algorithm'),
-#             file=file.path(supp_dir, 'ROCAUC_mutTP53.txt'), sep='\t', row.names=F)
-# write.table(as.data.frame(allscores$tumorStage$roc_auc) %>% rownames_to_column('ML algorithm'),
-#             file=file.path(supp_dir, 'ROCAUC_tumorStage.txt'), sep='\t', row.names=F)
-
-
 
 ####################################################################
 ### Fig. 1, toy heatmap demonstrating consensus scoring approach ###
