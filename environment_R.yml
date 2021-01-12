@@ -1,0 +1,16 @@
+name: psp-cancer-r
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bioconductor-edger
+  - bioconductor-summarizedexperiment
+  - r-base
+  - r-cowplot
+  - r-dplyr
+  - r-ggplot2
+  - r-pheatmap
+  - r-rcolorbrewer
+  - r-tidyr
+  - rstudio=1.1.456
