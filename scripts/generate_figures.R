@@ -11,7 +11,7 @@ library(grid)
 library(cowplot)
 
 
-# specify main project directory
+# specify main project directory and the directory where to save figures
 proj_dir <- '/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML'
 fig_dir <- paste0(proj_dir, '/doc/manuscript/figures/fig_pieces')
 
@@ -168,7 +168,7 @@ invisible(dev.off())
 classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
 n_genes <- 10  # specify number of genes to include
 sort_by <- 'mean'  # 'mean' or 'top each'
-model <- 'DE_FDRscore'  # e.g., 'Average' or 'DE_FDRscore'
+model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
 
 # prepare data
 scores <- allscores[[classVar]]
@@ -210,12 +210,12 @@ invisible(dev.off())
 #####################################################
 
 # specify parameters
-classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
 group_cancers <- T  # if 'tumorStage', stages will be grouped (averaged) together by cancer type
-n_genes <- 10  # specify number of genes to include
-sort_by <- 'mean'  # 'mean' or 'top each'
-model <- 'DE_FDRscore'  # e.g., 'Average' or 'DE_FDRscore'
-cancer_types <- c('ACC','KIRP','KIRC','THCA','TGCT')  # use NULL to keep all available cancer types
+n_genes <- 5  # specify number of genes to include
+sort_by <- 'top each'  # 'mean' or 'top each'
+model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
+cancer_types <- NULL #c('ACC','KIRP','KIRC','THCA','TGCT')  # use NULL to keep all available cancer types
 
 # prepare data
 scores <- allscores[[classVar]]
