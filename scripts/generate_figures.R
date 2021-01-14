@@ -178,7 +178,7 @@ if (sort_by == 'mean') {
   top_genes <- rownames(dat)[o[1:n_genes]]
 } else if (sort_by == 'top each') {
   o <- apply(dat, 2, function(x) order(x, decreasing=T))
-  top_genes <- rownames(dat)[unique(o[1:n_genes, ])]
+  top_genes <- rownames(dat)[unique(as.vector(o[1:n_genes, ]))]
 }
 if (classVar == 'mutTP53') {
   dat$targets <- as.factor(rownames(dat) %in% c('BAX', 'HSPA4L', 'KIF23'))
