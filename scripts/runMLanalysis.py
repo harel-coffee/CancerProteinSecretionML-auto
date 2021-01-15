@@ -5,9 +5,11 @@
 """
 
 #%%
-import omicsAnalysisFunctions as OF
 import os
 import pandas as pd
+
+# must be in the project "scripts" directory to import OF
+import omicsAnalysisFunctions as OF
 
 RS = 20170628
 proj_dir = os.path.dirname(os.getcwd())
