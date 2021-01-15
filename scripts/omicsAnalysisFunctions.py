@@ -1112,30 +1112,12 @@ def filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep):
 ###############################################################################
 
 
-def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_tpm_threshold):
+def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, med_tpm_threshold):
     """
     Remove genes from dataset according to specified parameters.
     """
     
-    if dimReduction: # step into dim reduction if dimReduction is set to True
-        signifDEgenes = pd.read_excel('PSP_genes_signifDE.xlsx')
-        signifDECancerTypes = signifDEgenes.columns[3:].tolist()
-        signifDECancerTypes = [s.split('_')[1] for s in signifDECancerTypes]
-        if CancerType.split('-')[1] in signifDECancerTypes: # Make sure that the selected cancer type exists
-            if dimRedMethod == 'numSigCancers':
-                signifDEgenes = signifDEgenes.loc[signifDEgenes['num sig cancers']>=numSigCancers, 'gene name'].tolist()
-            elif dimRedMethod == 'signifDEgenes':
-                signifDEgenes = signifDEgenes.loc[signifDEgenes['Padj_' + CancerType.split('-')[1]]<=0.01, 'gene name'].tolist()
-            signifDEgenes.insert(0,ClassVar)
-            dfAnalysis_fl = dfAnalysis_fl[signifDEgenes]
-            print('Size of the dataframe after filtering signifDEgenes: {0}'.format(dfAnalysis_fl.shape))
-            dfAnalysis_fl_cd = dfAnalysis_fl
-        else:
-            print('Dim reduction cannot be performed because the cancer type' \
-                  '"{0}" does not have paired samples.' \
-                  .format(CancerType))
-            
-    elif med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
+    if med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
         # Look at the list low_tpm_genes, these are the genes which will be removed.
         data_stats, low_tpm_genes = GeneExpression(dfAnalysis_fl,med_tpm_threshold)
         print('\n*********************************************')

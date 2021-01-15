@@ -47,7 +47,6 @@ med_tpm_threshold = 0.1
 
 dataStoreFile = 'CancerDataStore_psp.h5'
 output_dir = 'results'
-dimReduction = False
 allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
                   'ESCA', 'GBM', 'HNSC', 'KICH', 'KIRC', 'KIRP', 'LGG', 
                   'LIHC', 'LUAD', 'LUSC', 'MESO', 'OV', 'PAAD', 'PCPG',
@@ -125,7 +124,7 @@ for CancerType in allCancerTypes:
                 continue
             
             # filter genes from data
-            dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_tpm_threshold)
+            dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, med_tpm_threshold)
             
             # fit models, rank genes, and perform cross-validation
             dfRanks, dfCVscores_accuracy, dfCVscores_ROC = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS)
@@ -153,7 +152,7 @@ for CancerType in allCancerTypes:
             continue
         
         # filter genes from data
-        dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_tpm_threshold)
+        dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, med_tpm_threshold)
         
         # fit models, rank genes, and perform cross-validation
         dfRanks, dfCVscores_accuracy, dfCVscores_ROC = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS)
