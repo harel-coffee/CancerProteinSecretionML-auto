@@ -22,12 +22,13 @@ proj_dir = os.path.dirname(os.getcwd())
 
 # ClassVar options: 'mutTP53', 'CancerStatus', 'TumorStageMerged',
 #                   'Race', 'Gender', 'Mutations', 'AllStageCombos'
-ClassVar = 'CancerStatus'
+ClassVar = 'TumorStageMerged'
 
 # Select which levels of the class variable to keep. Not needed for classVar='AllStageCombos'
-VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']  # for 'CancerStatus'
+# VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']  # for 'CancerStatus'
 # VarLevelsToKeep = ['FALSE', 'TRUE']  # for 'mutTP53' or 'Mutations'
 # VarLevelsToKeep = ['stage iv','stage x']  # for 'TumorStageMerged'
+VarLevelsToKeep = ['stage i', 'stage ii', 'stage iii', 'stage iv']
 
 # specify offset to add to TPM values before log-transforming (to handle zeros)
 logTransOffset = 1  # transformed TPM = log(TPM + offset)
@@ -91,7 +92,7 @@ for CancerType in allCancerTypes:
                 continue
             
             # filter genes from data
-            dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, mutClassVar, dimReduction, med_tpm_threshold)
+            dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, mutClassVar, med_tpm_threshold)
             
             # fit models, rank genes, and perform cross-validation
             dfRanks, dfCVscores_accuracy, dfCVscores_ROC = OF.performGeneRanking(dfAnalysis_fl_cd, mutClassVar, VarLevelsToKeep, logTransOffset, RS)
@@ -146,8 +147,8 @@ for CancerType in allCancerTypes:
         dfAnalysis_fl, ClassVarLevelsFreqTab = OF.filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep)
         
         
-        # check if there are at least 10 samples in each class, and at least 2 classes
-        if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < 2)):
+        # check if there are at least 10 samples in each class, and that all classes are present
+        if ((ClassVarLevelsFreqTab['Frequency'].min() < 10) or (ClassVarLevelsFreqTab.shape[0] < len(VarLevelsToKeep))):
             print('Insufficient samples to perform analysis; skipping.')
             continue
         
@@ -155,11 +156,11 @@ for CancerType in allCancerTypes:
         dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, med_tpm_threshold)
         
         # fit models, rank genes, and perform cross-validation
-        dfRanks, dfCVscores_accuracy, dfCVscores_ROC = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS)
+        dfRanks, dfCVscores = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS)
         
         # write results to file
         resultsPath = proj_dir + '/' + output_dir + '/'
-        OF.writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, ClassVar, VarLevelsToKeep, resultsPath)
+        OF.writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKeep, resultsPath)
         
         
     
