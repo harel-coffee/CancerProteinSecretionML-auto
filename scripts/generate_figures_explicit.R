@@ -38,11 +38,17 @@ stages <- c('stagei_stageii', 'stagei_stageiii', 'stagei_stageiv', 'stageii_stag
 stageNames <- c('stage1v2', 'stage1v3', 'stage1v4', 'stage2v3', 'stage2v4', 'stage3v4')
 cancer_stages <- unlist(lapply(cancers, function(x) paste(x, stageNames, sep='_')))
 
-score_vars <- c('scores_cancerStatus', 'scores_mutTP53', 'scores_tumorStage')
+score_vars <- c('scores_cancerStatus', 'scores_mutTP53', 'scores_tumorStage', 'scores_stageRegress')
 # DE_vars <- c('DE_cancerStatus', 'DE_mutTP53', 'DE_tumorStage')
+
 model_names <- c('ExtraTreesClassifier', 'RandomForestClassifier', 'AdaBoostClassifier', 'XGBClassifier',
                  'LinearDiscriminantAnalysis', 'SVC', 'LassoRegression', 'RidgeRegression', 'Average')
+reg_model_names <- c('ExtraTreesRegressor', 'RandomForestRegressor', 'AdaBoostRegressor', 'XGBRegressor',
+                     'SVR', 'LassoRegression', 'RidgeRegression', 'Average')
+
 new_model_names <- c('Extra Trees', 'Random Forest', 'AdaBoost', 'XGBoost', 'LDA', 'SVM', 'Lasso', 'Ridge', 'Average')
+new_reg_model_names <- c('Extra Trees', 'Random Forest', 'AdaBoost', 'XGBoost', 'SVM', 'Lasso', 'Ridge', 'Average')
+
 DE_vars <- c('DE_log2FC', 'DE_FDR', 'DE_FDRscore')
 
 for (x in score_vars) assign(x, list())
@@ -51,15 +57,21 @@ for (model in c(model_names, DE_vars)) {
   scores_mutTP53[[model]]      <- matrix(NA, nrow=length(genes), ncol=length(cancers), dimnames=list(genes, cancers))
   scores_tumorStage[[model]]   <- matrix(NA, nrow=length(genes), ncol=length(cancer_stages), dimnames=list(genes, cancer_stages))
 }
+for (reg_model in c(reg_model_names)) {
+  scores_stageRegress[[reg_model]] <- matrix(NA, nrow=length(genes), ncol=length(cancers), dimnames=list(genes, cancers))
+}
+
 scores_cancerStatus$roc_auc <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancers), dimnames=list(model_names[1:(length(model_names)-1)], cancers))
 scores_mutTP53$roc_auc      <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancers), dimnames=list(model_names[1:(length(model_names)-1)], cancers))
 scores_tumorStage$roc_auc   <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancer_stages), dimnames=list(model_names[1:(length(model_names)-1)], cancer_stages))
+scores_stageRegress$neg_mse <- matrix(NA, nrow=length(reg_model_names)-1, ncol=length(cancers), dimnames=list(reg_model_names[1:(length(reg_model_names)-1)], cancers))
 
 for (cancer in cancers) {
   cancer_path <- paste0(proj_dir, '/results/', cancer)
   files_cancerStatus <- dir(cancer_path, 'CancerStatus')
   files_mutTP53 <- dir(cancer_path, 'mutTP53')
-  files_tumorStage <- dir(cancer_path, 'TumorStage')
+  files_stageRegress <- dir(cancer_path, 'TumorStage_regression')
+  files_tumorStage <- setdiff(dir(cancer_path, 'TumorStage'), files_stageRegress)
   
   if (length(files_cancerStatus) > 0) {
     scores <- read.csv(paste0(cancer_path, '/', files_cancerStatus[grepl('GenesRanking', files_cancerStatus)]), row.names=1)
@@ -111,6 +123,15 @@ for (cancer in cancers) {
     }
   }
   
+  if (length(files_stageRegress) > 0) {
+    scores <- read.csv(paste0(cancer_path, '/', files_stageRegress[grepl('GenesRanking', files_stageRegress)]), row.names=1)
+    for (reg_model in reg_model_names) {
+      scores_stageRegress[[reg_model]][, cancer] <- scores[match(genes, rownames(scores)), reg_model]
+    }
+    neg_mse <- read.csv(paste0(cancer_path, '/', files_stageRegress[grepl('CVscores', files_stageRegress)]), row.names=1)
+    scores_stageRegress$neg_mse[, cancer] <- neg_mse$Score[match(reg_model_names[1:(length(reg_model_names)-1)], rownames(neg_mse))]
+  }
+  
 }
 
 # remove cancer types that were not included in each analysis
@@ -126,14 +147,19 @@ keep_cancers <- colnames(scores_tumorStage$Average)[colSums(is.na(scores_tumorSt
 for (item in names(scores_tumorStage)) {
   scores_tumorStage[[item]] <- scores_tumorStage[[item]][, keep_cancers] %>% replace_na(0)
 }
+keep_cancers <- colnames(scores_stageRegress$Average)[colSums(is.na(scores_stageRegress$Average)) < nrow(scores_stageRegress$Average)]
+for (item in names(scores_stageRegress)) {
+  scores_stageRegress[[item]] <- scores_stageRegress[[item]][, keep_cancers] %>% replace_na(0)
+}
 
-# rename models in roc_auc slot
+# rename models in roc_auc and neg_mse slots
 rownames(scores_cancerStatus$roc_auc) <- new_model_names[match(rownames(scores_cancerStatus$roc_auc), model_names)]
 rownames(scores_mutTP53$roc_auc) <- new_model_names[match(rownames(scores_mutTP53$roc_auc), model_names)]
 rownames(scores_tumorStage$roc_auc) <- new_model_names[match(rownames(scores_tumorStage$roc_auc), model_names)]
+rownames(scores_stageRegress$neg_mse) <- new_reg_model_names[match(rownames(scores_stageRegress$neg_mse), reg_model_names)]
 
 # combine scores into list and remove intermediate variables
-allscores <- list(cancerStatus=scores_cancerStatus, mutTP53=scores_mutTP53, tumorStage=scores_tumorStage)
+allscores <- list(cancerStatus=scores_cancerStatus, mutTP53=scores_mutTP53, tumorStage=scores_tumorStage, stageRegress=scores_stageRegress)
 rm(list=setdiff(ls(), c('proj_dir', 'expdata', 'allscores', 'fig_dir', 'gene_data')))
 invisible(gc())
 
