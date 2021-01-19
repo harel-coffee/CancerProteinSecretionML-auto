@@ -48,6 +48,7 @@ med_tpm_threshold = 0.1
 
 dataStoreFile = 'CancerDataStore_psp.h5'
 output_dir = 'results'
+overwrite_results = False
 allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
                   'ESCA', 'GBM', 'HNSC', 'KICH', 'KIRC', 'KIRP', 'LGG', 
                   'LIHC', 'LUAD', 'LUSC', 'MESO', 'OV', 'PAAD', 'PCPG',
@@ -79,7 +80,7 @@ for CancerType in allCancerTypes:
     if ClassVar == 'Mutations':
         all_mutClassVars = [s for s in colnames if 'mut' == s[0:3]]  # extract mutation variables
         for mutClassVar in all_mutClassVars:                        
-            if (CancerType) in os.listdir(proj_dir + '/' + output_dir):
+            if (not overwrite_results) and (CancerType) in os.listdir(proj_dir + '/' + output_dir):
                 if any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if mutClassVar + '_GenesRanking' in x]):
                     print('Already analyzed; skipping.')
                     continue
@@ -109,7 +110,7 @@ for CancerType in allCancerTypes:
         for stage_combo in all_tumor_combinations:
             ClassVar = 'TumorStageMerged'
             VarLevelsToKeep = stage_combo
-            if (CancerType) in os.listdir(proj_dir + '/' + output_dir):
+            if (not overwrite_results) and (CancerType) in os.listdir(proj_dir + '/' + output_dir):
                 file_name_piece = '_'.join(['TumorStage'] + VarLevelsToKeep)
                 file_name_piece = file_name_piece.replace(' ','')
                 if any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if file_name_piece + '_GenesRanking' in x]):
@@ -138,8 +139,9 @@ for CancerType in allCancerTypes:
         ClassVar = 'AllStageCombos'
         
     else: 
-        if (CancerType) in os.listdir(proj_dir + '/' + output_dir):
-            if any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if ClassVar + '_GenesRanking' in x]):
+        if (not overwrite_results) and (CancerType) in os.listdir(proj_dir + '/' + output_dir):
+            if any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if ClassVar + '_GenesRanking' in x]) or \
+            (len(VarLevelsToKeep) > 2 and any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if 'regression' in x])):
                 print('Already analyzed; skipping.')
                 continue
         
