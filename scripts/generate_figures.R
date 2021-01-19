@@ -38,11 +38,17 @@ stages <- c('stagei_stageii', 'stagei_stageiii', 'stagei_stageiv', 'stageii_stag
 stageNames <- c('stage1v2', 'stage1v3', 'stage1v4', 'stage2v3', 'stage2v4', 'stage3v4')
 cancer_stages <- unlist(lapply(cancers, function(x) paste(x, stageNames, sep='_')))
 
-score_vars <- c('scores_cancerStatus', 'scores_mutTP53', 'scores_tumorStage')
+score_vars <- c('scores_cancerStatus', 'scores_mutTP53', 'scores_tumorStage', 'scores_stageRegress')
 # DE_vars <- c('DE_cancerStatus', 'DE_mutTP53', 'DE_tumorStage')
+
 model_names <- c('ExtraTreesClassifier', 'RandomForestClassifier', 'AdaBoostClassifier', 'XGBClassifier',
                  'LinearDiscriminantAnalysis', 'SVC', 'LassoRegression', 'RidgeRegression', 'Average')
+reg_model_names <- c('ExtraTreesRegressor', 'RandomForestRegressor', 'AdaBoostRegressor', 'XGBRegressor',
+                     'SVR', 'LassoRegression', 'RidgeRegression', 'Average')
+
 new_model_names <- c('Extra Trees', 'Random Forest', 'AdaBoost', 'XGBoost', 'LDA', 'SVM', 'Lasso', 'Ridge', 'Average')
+new_reg_model_names <- c('Extra Trees', 'Random Forest', 'AdaBoost', 'XGBoost', 'SVM', 'Lasso', 'Ridge', 'Average')
+
 DE_vars <- c('DE_log2FC', 'DE_FDR', 'DE_FDRscore')
 
 for (x in score_vars) assign(x, list())
@@ -51,15 +57,21 @@ for (model in c(model_names, DE_vars)) {
   scores_mutTP53[[model]]      <- matrix(NA, nrow=length(genes), ncol=length(cancers), dimnames=list(genes, cancers))
   scores_tumorStage[[model]]   <- matrix(NA, nrow=length(genes), ncol=length(cancer_stages), dimnames=list(genes, cancer_stages))
 }
+for (reg_model in c(reg_model_names)) {
+  scores_stageRegress[[reg_model]] <- matrix(NA, nrow=length(genes), ncol=length(cancers), dimnames=list(genes, cancers))
+}
+
 scores_cancerStatus$roc_auc <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancers), dimnames=list(model_names[1:(length(model_names)-1)], cancers))
 scores_mutTP53$roc_auc      <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancers), dimnames=list(model_names[1:(length(model_names)-1)], cancers))
 scores_tumorStage$roc_auc   <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancer_stages), dimnames=list(model_names[1:(length(model_names)-1)], cancer_stages))
+scores_stageRegress$neg_mse <- matrix(NA, nrow=length(reg_model_names)-1, ncol=length(cancers), dimnames=list(reg_model_names[1:(length(reg_model_names)-1)], cancers))
 
 for (cancer in cancers) {
   cancer_path <- paste0(proj_dir, '/results/', cancer)
   files_cancerStatus <- dir(cancer_path, 'CancerStatus')
   files_mutTP53 <- dir(cancer_path, 'mutTP53')
-  files_tumorStage <- dir(cancer_path, 'TumorStage')
+  files_stageRegress <- dir(cancer_path, 'TumorStage_regression')
+  files_tumorStage <- setdiff(dir(cancer_path, 'TumorStage'), files_stageRegress)
   
   if (length(files_cancerStatus) > 0) {
     scores <- read.csv(paste0(cancer_path, '/', files_cancerStatus[grepl('GenesRanking', files_cancerStatus)]), row.names=1)
@@ -111,6 +123,15 @@ for (cancer in cancers) {
     }
   }
   
+  if (length(files_stageRegress) > 0) {
+    scores <- read.csv(paste0(cancer_path, '/', files_stageRegress[grepl('GenesRanking', files_stageRegress)]), row.names=1)
+    for (reg_model in reg_model_names) {
+      scores_stageRegress[[reg_model]][, cancer] <- scores[match(genes, rownames(scores)), reg_model]
+    }
+    neg_mse <- read.csv(paste0(cancer_path, '/', files_stageRegress[grepl('CVscores', files_stageRegress)]), row.names=1)
+    scores_stageRegress$neg_mse[, cancer] <- neg_mse$Score[match(reg_model_names[1:(length(reg_model_names)-1)], rownames(neg_mse))]
+  }
+  
 }
 
 # remove cancer types that were not included in each analysis
@@ -126,14 +147,19 @@ keep_cancers <- colnames(scores_tumorStage$Average)[colSums(is.na(scores_tumorSt
 for (item in names(scores_tumorStage)) {
   scores_tumorStage[[item]] <- scores_tumorStage[[item]][, keep_cancers] %>% replace_na(0)
 }
+keep_cancers <- colnames(scores_stageRegress$Average)[colSums(is.na(scores_stageRegress$Average)) < nrow(scores_stageRegress$Average)]
+for (item in names(scores_stageRegress)) {
+  scores_stageRegress[[item]] <- scores_stageRegress[[item]][, keep_cancers] %>% replace_na(0)
+}
 
-# rename models in roc_auc slot
+# rename models in roc_auc and neg_mse slots
 rownames(scores_cancerStatus$roc_auc) <- new_model_names[match(rownames(scores_cancerStatus$roc_auc), model_names)]
 rownames(scores_mutTP53$roc_auc) <- new_model_names[match(rownames(scores_mutTP53$roc_auc), model_names)]
 rownames(scores_tumorStage$roc_auc) <- new_model_names[match(rownames(scores_tumorStage$roc_auc), model_names)]
+rownames(scores_stageRegress$neg_mse) <- new_reg_model_names[match(rownames(scores_stageRegress$neg_mse), reg_model_names)]
 
 # combine scores into list and remove intermediate variables
-allscores <- list(cancerStatus=scores_cancerStatus, mutTP53=scores_mutTP53, tumorStage=scores_tumorStage)
+allscores <- list(cancerStatus=scores_cancerStatus, mutTP53=scores_mutTP53, tumorStage=scores_tumorStage, stageRegress=scores_stageRegress)
 rm(list=setdiff(ls(), c('proj_dir', 'expdata', 'allscores', 'fig_dir', 'gene_data')))
 invisible(gc())
 
@@ -165,7 +191,7 @@ invisible(dev.off())
 #####################################################
 
 # specify parameters
-classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
 n_genes <- 10  # specify number of genes to include
 sort_by <- 'mean'  # 'mean' or 'top each'
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
@@ -210,10 +236,10 @@ invisible(dev.off())
 #####################################################
 
 # specify parameters
-classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
 group_cancers <- T  # if 'tumorStage', stages will be grouped (averaged) together by cancer type
-n_genes <- 5  # specify number of genes to include
-sort_by <- 'top each'  # 'mean' or 'top each'
+n_genes <- 10  # specify number of genes to include
+sort_by <- 'mean'  # 'mean' or 'top each'
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
 cancer_types <- NULL #c('ACC','KIRP','KIRC','THCA','TGCT')  # use NULL to keep all available cancer types
 
@@ -269,7 +295,7 @@ invisible(dev.off())
 ###################################################################################
 
 # specify parameters
-classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
 n_genes <- 5  # specify number of genes to include
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
 cancers <- NULL #c('STAD', 'READ', 'COAD', 'KICH', 'THCA')
@@ -277,7 +303,9 @@ cancers <- NULL #c('STAD', 'READ', 'COAD', 'KICH', 'THCA')
 # prepare data
 scores <- allscores[[classVar]]
 dat <- as.data.frame(scores[[model]])
-dat <- dat[, colnames(dat) %in% cancers]
+if (!is.null(cancers)) {
+  dat <- dat[, colnames(dat) %in% cancers]
+}
 o <- apply(dat, 2, function(x) order(x, decreasing=T))
 top_genes <- rownames(dat)[unique(as.vector(o[1:n_genes, ]))]
 dat <- dat[top_genes, ]
@@ -296,9 +324,11 @@ dat <- dat[row_order, ]
 # specify annotation colors
 # annColors <- list(module = brewer.pal(4, 'Set1') %>% setNames(levels(gene_data$module)),
 #                   subsystem = c(brewer.pal(12, 'Set3'), '#969696') %>% setNames(levels(gene_data$subsystem)))
-annColors <- list(Function = viridis(3, begin=0.4) %>% setNames(unique(gene_data$module[row_order])))
+unique_modules <- unique(gene_data$module[row_order])
+annColors <- list(Function = viridis(4) %>%
+                    setNames(c('Capacity control', 'Folding', 'Trafficking', 'Glycosylation')))
+annColors$Function <- annColors$Function[intersect(names(annColors$Function), unique_modules)]
 annData <- gene_data[, c('module'), drop=F] %>% setNames('Function')
-
 
 # generate heatmap
 pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_topEach_heatmap.pdf'), width=3+2.3*ncol(dat)/22, height=4, onefile=F)
@@ -325,7 +355,7 @@ invisible(dev.off())
 #################################################
 
 # specify parameters
-classVar <- 'mutTP53'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
 
 # prepare data
@@ -335,7 +365,7 @@ dat <- as.data.frame(apply(scores[[model]], 1, mean)) %>% setNames('Mean score')
 # generate plot
 pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_histogram.pdf'), width=4, height=3)
 ggplot(dat, aes(x=`Mean score`)) +
-  geom_histogram(color='black', fill=values=brewer.pal(3,'Paired')[1], breaks=seq(0, 0.5, length.out=50)) +
+  geom_histogram(color='black', fill=brewer.pal(3,'Paired')[1], breaks=seq(0, 0.5, length.out=50)) +
   theme_minimal() +
   theme(axis.text=element_text(color='black', size=12),
         axis.title=element_text(size=12)) + 
@@ -420,7 +450,7 @@ invisible(dev.off())
 ##################################################
 
 # specify parameters
-classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus'
+classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
 groupby <- 'Cancer'  # 'Cancer' or 'Model'
 
 # prepare data
@@ -470,6 +500,53 @@ ggplot(dat, aes_string(x=groupby, y="`ROC AUC`", fill=groupby)) +
   scale_fill_hue(h=hues, c=75)
   # coord_cartesian(ylim=c(0,1))
 # geom_violin(trim=F) + 
+invisible(dev.off())
+
+
+##################################################
+### Fig. X, Panel X: Boxplot of NEG MSE values ###
+##################################################
+
+# specify parameters
+classVar <- 'stageRegress'  # only relevant for 'stageRegress'
+groupby <- 'Model'  # 'Cancer' or 'Model'
+
+# prepare data
+scores <- allscores[[classVar]]
+dat <- as.data.frame(scores$neg_mse)
+
+o_model <- rownames(dat)[order(apply(dat, 1, median), decreasing=T)]
+o_cancer <- colnames(dat)[order(apply(dat, 2, median), decreasing=T)]
+dat <- dat[o_model, o_cancer] %>% rownames_to_column('Model')
+dat <- pivot_longer(dat, cols=colnames(dat)[-1], values_to='NEG MSE', names_to='Cancer')
+dat$Model <- factor(dat$Model, levels=o_model, ordered=T)
+dat$Cancer <- factor(dat$Cancer, levels=o_cancer, ordered=T)
+
+# generate plot
+if (groupby == 'Cancer') {
+  plot_width <- 6
+  plot_height <- 4
+  hues <- c(0,100)
+  text_angle <- 90
+  vjust_val <- 0.5
+} else if (groupby == 'Model') {
+  plot_width <- 3
+  plot_height <- 4.5
+  hues <- c(230,330)
+  text_angle <- 45
+  vjust_val <- 1
+}
+
+pdf(file=paste0(fig_dir, '/', classVar, '_NEGMSE_', groupby, '_boxplot.pdf'), width=plot_width, height=plot_height)
+ggplot(dat, aes_string(x=groupby, y="`NEG MSE`", fill=groupby)) +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(legend.position='none',
+        axis.text=element_text(color='black', size=12),
+        axis.text.x=element_text(angle=text_angle, hjust=1, vjust=vjust_val),
+        axis.title=element_text(size=12)) + 
+  xlab(groupby) +
+  scale_fill_hue(h=hues, c=75)
 invisible(dev.off())
 
 
