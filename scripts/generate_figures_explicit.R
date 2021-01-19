@@ -434,7 +434,10 @@ for (i in seq(ncol(dat))) {
 dat <- dat[row_order, ]
 
 # specify annotation colors
-annColors <- list(Function = viridis(3, begin=0.4) %>% setNames(unique(gene_data$module[row_order])))
+unique_modules <- unique(gene_data$module[row_order])
+annColors <- list(Function = viridis(4) %>%
+                    setNames(c('Capacity control', 'Folding', 'Trafficking', 'Glycosylation')))
+annColors$Function <- annColors$Function[intersect(names(annColors$Function), unique_modules)]
 annData <- gene_data[, c('module'), drop=F] %>% setNames('Function')
 
 # generate heatmap
