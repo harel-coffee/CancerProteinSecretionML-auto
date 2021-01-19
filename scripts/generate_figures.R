@@ -71,7 +71,7 @@ for (cancer in cancers) {
     scores_cancerStatus$DE_FDR[, cancer] <- de_res$FDR[match(genes, rownames(de_res))]
     scores_cancerStatus$DE_FDRscore[, cancer] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
     
-    roc_auc <- read.csv(paste0(cancer_path, '/', files_cancerStatus[grepl('ROCAUC', files_cancerStatus)]), row.names=1)
+    roc_auc <- read.csv(paste0(cancer_path, '/', files_cancerStatus[grepl('CVscores', files_cancerStatus)]), row.names=1)
     scores_cancerStatus$roc_auc[, cancer] <- roc_auc$Score[match(model_names[1:(length(model_names)-1)], rownames(roc_auc))]
   }
   
@@ -85,7 +85,7 @@ for (cancer in cancers) {
     scores_mutTP53$DE_FDR[, cancer] <- de_res$FDR[match(genes, rownames(de_res))]
     scores_mutTP53$DE_FDRscore[, cancer] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
     
-    roc_auc <- read.csv(paste0(cancer_path, '/', files_mutTP53[grepl('ROCAUC', files_mutTP53)]), row.names=1)
+    roc_auc <- read.csv(paste0(cancer_path, '/', files_mutTP53[grepl('CVscores', files_mutTP53)]), row.names=1)
     scores_mutTP53$roc_auc[, cancer] <- roc_auc$Score[match(model_names[1:(length(model_names)-1)], rownames(roc_auc))]
   }
   
@@ -106,7 +106,7 @@ for (cancer in cancers) {
       scores_tumorStage$DE_FDR[, f_name] <- de_res$FDR[match(genes, rownames(de_res))]
       scores_tumorStage$DE_FDRscore[, f_name] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
       
-      roc_auc <- read.csv(paste0(cancer_path, '/', sub('GenesRanking', 'CVscores_ROCAUC', f)), row.names=1)
+      roc_auc <- read.csv(paste0(cancer_path, '/', sub('GenesRanking', 'CVscores', f)), row.names=1)
       scores_tumorStage$roc_auc[, f_name] <- roc_auc$Score[match(model_names[1:(length(model_names)-1)], rownames(roc_auc))]
     }
   }
