@@ -481,6 +481,10 @@ def CVScorer(models, CV, X, y, scoring, shuffle, folds=10):
                 modelName = 'LassoRegression'
             elif model.penalty == 'l2':
                 modelName = 'RidgeRegression'
+        elif modelName == 'Lasso':
+            modelName = 'LassoRegression'
+        elif modelName == 'Ridge':
+            modelName = 'RidgeRegression'
         scores = cross_val_score(model, X, y, scoring=scoring, cv=cv, n_jobs=-1)
         dfCVscores = dfCVscores.append(pd.Series([modelName, scoring, scores.mean(),(scores.mean() - 2*scores.std()), (scores.mean() + 2*scores.std())],
                                                  index=dfCVscores.columns), ignore_index=True)
