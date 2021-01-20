@@ -1167,7 +1167,7 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
     """
     Fit classification models, rank genes (features) based on feature 
     importance scores, and perform a cross-fold validation analysis to assess
-    the accuracy and ROC AUC of each model.
+    the predictive performance of each model.
     """
     
     # Perform label encoding for the ClassVar and log-transform data
@@ -1303,7 +1303,7 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
     print('\nDone!\n')
     print('\n*********************************************')
     
-    # Run model cross-validation and determine accuracy and ROC AUC
+    # Run model cross-validation and determine model performance
     CV = 'Validation: SKF'
     shuffle = True
     folds = 10
@@ -1328,7 +1328,7 @@ def writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKee
 
     parent_dir_name = resultsPath
     
-    print('Writing dataset, genees ranking and CV analysis results to a ' \
+    print('Writing dataset, genes ranking and CV analysis results to a ' \
           'directory named "{0}"'.format(CancerType))
     
     os.makedirs(parent_dir_name + CancerType , exist_ok=True)
