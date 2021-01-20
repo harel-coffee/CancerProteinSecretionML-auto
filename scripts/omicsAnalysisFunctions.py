@@ -1348,20 +1348,14 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
     CV = 'Validation: SKF'
     shuffle = True
     folds = 10
-
     if len(VarLevelsToKeep) == 2:
-        # print('Performing models CV analysis using accuracy...\n')
-        # dfCVscores_accuracy = CVScorer(models, CV, X, y, 'accuracy', shuffle, folds)
-        # print('\nDone!\n')
-        
-        print('Performing models CV analysis using area under the ROC curve...\n')
-        dfCVscores = CVScorer(models, CV, X, y, 'roc_auc', shuffle, folds)
-        print('\nDone!\n')
+        score_metric = 'roc_auc'
     else:
-        print('Performing models CV analysis using mean squared error...\n')
-        dfCVscores = CVScorer(models, CV, X, y, 'neg_mean_squared_error', shuffle, folds)
-        print('\nDone!\n')
-    
+        score_metric = 'neg_mean_squared_error'
+    print('Performing models CV analysis...\n')
+    dfCVscores = CVScorer(models, CV, X, y, score_metric, shuffle, folds)
+    print('\nDone!\n')
+
     return dfRanks, dfCVscores
 
 
