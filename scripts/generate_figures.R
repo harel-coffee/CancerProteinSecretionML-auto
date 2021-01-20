@@ -337,7 +337,7 @@ pheatmap(dat,
          color=magma(100),
          cluster_rows=F,
          cluster_cols=F,
-         breaks=seq(0,0.6,len=100),
+         breaks=seq(0,0.8,len=100),
          angle_col=90,
          annotation_row=annData,
          annotation_colors=annColors)
@@ -799,7 +799,7 @@ DE_logFC <- DE_logFC %>% rownames_to_column('Gene')
 DE_logFC <- pivot_longer(DE_logFC, cols=colnames(DE_logFC)[2:ncol(DE_logFC)], values_to='logFC', names_to='Cancer')
 DE_logPval <- DE_logPval %>% rownames_to_column('Gene')
 DE_logPval <- pivot_longer(DE_logPval, cols=colnames(DE_logPval)[2:ncol(DE_logPval)], values_to='logPval', names_to='Cancer')
-dat <- merge(DE_logFC, DE_logPval, by=c('Gene', 'Cancer'), )
+dat <- merge(DE_logFC, DE_logPval, by=c('Gene', 'Cancer'))
 
 dat$Gene <- ordered(dat$Gene, levels=gene_order)
 dat$Cancer <- ordered(dat$Cancer, levels=cancer_order)
