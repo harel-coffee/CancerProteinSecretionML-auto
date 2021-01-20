@@ -1163,7 +1163,7 @@ def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, med_tpm_threshold):
 ###############################################################################
 
 
-def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS):
+def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS, score_metric):
     """
     Fit classification models, rank genes (features) based on feature 
     importance scores, and perform a cross-fold validation analysis to assess
@@ -1286,27 +1286,6 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
         ridge.fit(X, y)
         ranks['RidgeRegression'] = Ranks2Dict(np.abs(ridge.coef_), geneNames)
         print('- Ridge Regression complete.')
-    
-    
-    # Calculation of individual gene performance (very slow!)
-    
-#        # Computing genes ranking based on their individual performance using the SVM model.
-#        indGeneScores = []
-#        for i in range(X.shape[1]):
-#             score = cross_val_score(svmSVC, X[:, i:i+1], y, scoring='accuracy',
-#                                     cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
-#             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
-#        ranks['SVMlinearindvGenes'] = dict(zip(geneNames, indGeneScores ))
-#        print('- SVMlinearindvGenes complete.')
-#    
-#        # Computing genes ranking based on their individual performance using the LDA model.
-#        indGeneScores = []
-#        for i in range(X.shape[1]):
-#             score = cross_val_score(lda, X[:, i:i+1], y, scoring='accuracy',
-#                                     cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
-#             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
-#        ranks['LDAindvGenes'] = dict(zip(geneNames, indGeneScores ))
-#        print('LDAindvGenes complete.')
 
 
     # calculate average rank for each gene    
@@ -1315,25 +1294,6 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
         r[name] = round(np.mean([ranks[method][name] for method in ranks.keys()]), 10)
     ranks['Average'] = r
     
-    
-    # Recursive feature elimination (RFE) methods
-
-#    rfeSVM = RFE(svm.SVC(kernel='linear'), n_features_to_select=1)
-#    rfeSVM.fit(X,y)
-#    ranks['rfeSVM'] = dict(zip(geneNames, rfeSVM.ranking_ ))
-#    print('- rfeSVM complete.')
-#    methods.append('SVMrfe')
-#    
-#    rfeET = RFE(extc, n_features_to_select=1)
-#    rfeET.fit(X,y)
-#    ranks['rfeExtraTree'] = dict(zip(geneNames, rfeET.ranking_ ))
-#    methods.append('rfeExtraTree')
-#    
-#    rfeRFC = RFE(RandomForestClassifier(n_estimators=200, random_state=RS), n_features_to_select=1)
-#    rfeRFC.fit(X,y)
-#    ranks['rfeRFC'] = dict(zip(geneNames, rfeRFC.ranking_ ))#Ranks2Dict(np.array(rfeRFC.ranking_, dtype=float), geneNames)#, order=1)
-#    print('- rfeRFC complete.')    
-
     # organize and sort ranks
     dfRanks = pd.DataFrame.from_dict(ranks)
     dfRanks.reset_index(inplace=True)
@@ -1343,15 +1303,14 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
     print('\nDone!\n')
     print('\n*********************************************')
     
-    
     # Run model cross-validation and determine accuracy and ROC AUC
     CV = 'Validation: SKF'
     shuffle = True
     folds = 10
-    if len(VarLevelsToKeep) == 2:
-        score_metric = 'roc_auc'
-    else:
-        score_metric = 'neg_mean_squared_error'
+    if len(VarLevelsToKeep) > 2 and score_metric in ['accuracy', 'f1', 'roc_auc', 'average_precision']:
+        raise ValueError('The provided score_metric is not applicable for regression problems!')
+    elif len(VarLevelsToKeep) == 2 and score_metric in ['explained_variance', 'neg_mean_squared_error', 'r2']:
+        raise ValueError('The provided score_metric is not applicable for binary classification problems!')
     print('Performing models CV analysis...\n')
     dfCVscores = CVScorer(models, CV, X, y, score_metric, shuffle, folds)
     print('\nDone!\n')
