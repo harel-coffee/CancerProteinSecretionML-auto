@@ -13,7 +13,7 @@ library(cowplot)
 
 # specify main project directory and the directory where to save figures
 proj_dir <- '/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML'
-fig_dir <- paste0(proj_dir, '/doc/manuscript/figures/fig_pieces')
+fig_dir <- paste0(proj_dir, '/doc/manuscript/REVISION/figures/fig_pieces')
 
 
 ##############################
