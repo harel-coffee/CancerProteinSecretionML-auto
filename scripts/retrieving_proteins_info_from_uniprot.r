@@ -1,9 +1,5 @@
 
 # CancerProteinSecretionML: retrieve and process the UniProt PTM data for all human proteins
-# *** CHANGE THIS PATH TO REPOSITORY PATH IN YOUR LOCAL COMPUTER ***
-# path2secAI <- '/path/to/local/CancerProteinSecretionML/'
-path2secAI <- '/Users/rasools/drive/projects/secAI/CancerProteinSecretionML/'
-# packages used for this  
 # sessionInfo()
 # R version 4.0.3 (2020-10-10)
 # Platform: x86_64-apple-darwin17.0 (64-bit)
@@ -44,9 +40,9 @@ st <- Sys.time()
 st
 allprot$status = NA
 for (i in 1:dim(allprot)[1]) {
-    remove(sta)
-    sta = GetMiscellaneous(allprot$uniprot_gn_id[i])
-    allprot$status[i] = sta$Status
+  remove(sta)
+  sta = GetMiscellaneous(allprot$uniprot_gn_id[i])
+  allprot$status[i] = sta$Status
 }
 en <- Sys.time()
 en-st
@@ -83,4 +79,8 @@ psim[is.na(psim)] = 0
 write.table(psim, file=paste(path2secAI, 'data/uniprot/uniprot_reviewed_info.txt', sep=''), row.names=F, col.names=T, sep='\t', quote=F)
 en <- Sys.time()
 en-st
+
+
+
+
 
