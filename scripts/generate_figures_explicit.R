@@ -733,7 +733,7 @@ DE_logFC <- DE_logFC %>% rownames_to_column('Gene')
 DE_logFC <- pivot_longer(DE_logFC, cols=colnames(DE_logFC)[2:ncol(DE_logFC)], values_to='logFC', names_to='Cancer')
 DE_logPval <- DE_logPval %>% rownames_to_column('Gene')
 DE_logPval <- pivot_longer(DE_logPval, cols=colnames(DE_logPval)[2:ncol(DE_logPval)], values_to='logPval', names_to='Cancer')
-dat <- merge(DE_logFC, DE_logPval, by=c('Gene', 'Cancer'), )
+dat <- merge(DE_logFC, DE_logPval, by=c('Gene', 'Cancer'))
 
 dat$Gene <- ordered(dat$Gene, levels=gene_order)
 dat$Cancer <- ordered(dat$Cancer, levels=cancer_order)
@@ -757,6 +757,210 @@ ggplot(dat, aes(x=Cancer, y=Gene, size=logPval, fill=logFC)) +
         legend.position='bottom',
         legend.box.just='left')
 invisible(dev.off())
+
+
+###########################################################################################
+### Fig. SX, Panels XXX: Combined histogram and boxplot of gene scores for stageRegress ###
+###########################################################################################
+
+# specify parameters
+classVar <- 'stageRegress'
+model <- 'Average'
+n_genes <- 10
+
+# prepare data
+scores <- allscores[[classVar]]
+dat <- scores[[model]]
+dat <- as.data.frame(apply(dat, 1, mean)) %>% setNames('Mean score')
+
+hist_xlab <- 'Mean gene ML score'
+box_xlab <- 'Gene ML score'
+
+# generate histogram
+p_hist <- ggplot(dat, aes(x=`Mean score`)) +
+  geom_histogram(color='black', fill=brewer.pal(3,'Paired')[1], breaks=seq(0, 0.5, length.out=50)) +
+  theme_minimal() +
+  theme(axis.text=element_text(color='black', size=12),
+        axis.title=element_text(size=12)) + 
+  coord_cartesian(xlim=c(0,0.45)) +
+  ylab('Genes') +
+  xlab(hist_xlab)
+
+# prepare data
+dat <- as.data.frame(scores[[model]])
+o <- order(apply(dat, 1, mean), decreasing=T)
+top_genes <- rownames(dat)[o[1:n_genes]]
+
+dat <- dat[top_genes, ] %>% rownames_to_column('Gene')
+dat$Gene <- factor(dat$Gene, levels=rev(top_genes), ordered=T)
+dat <- pivot_longer(dat, cols=colnames(dat)[2:(ncol(dat)-1)], values_to='Score', names_to='Cancer')
+
+# generate boxplots
+p_box <- ggplot(dat, aes(x=Score, y=Gene)) +
+  geom_boxplot(color='black', fill='#A6CEE3') +
+  theme_minimal() +
+  theme(legend.position='none',
+        axis.text=element_text(color='black', size=12),
+        axis.title=element_text(size=12)) + 
+  xlab(box_xlab) +
+  coord_cartesian(xlim=c(0,1))
+
+# generate combined plot
+pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_combined_HistBox.pdf'), width=7, height=3.5)
+plot_grid(p_hist, p_box, ncol=2, rel_widths=c(1,1), align='h', axis='tb', scale = 0.98)
+invisible(dev.off())
+
+
+
+#######################################################################
+### Fig. SX, Panel X: Heatmap of top-scoring genes for stageRegress ###
+#######################################################################
+
+# specify parameters
+classVar <- 'stageRegress'
+n_genes <- 10
+sort_by <- 'mean'
+model <- 'Average'
+
+# prepare data
+scores <- allscores[[classVar]]
+dat <- as.data.frame(scores[[model]])
+o <- order(apply(dat, 1, mean), decreasing=T)
+top_genes <- rownames(dat)[o[1:n_genes]]
+dat <- dat[top_genes, ]
+
+# generate heatmap
+pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_heatmap.pdf'), width=2.8+2*ncol(dat)/22, height=3, onefile=F)
+pheatmap(dat,
+         scale='none',
+         color=magma(100),
+         clustering_distance_rows='euclidean',
+         clustering_distance_cols='euclidean',
+         clustering_method='ward.D2',
+         breaks=seq(0,0.8,len=100),
+         angle_col=90,
+         border_color='black')
+invisible(dev.off())
+
+
+
+###################################################################################################
+### Fig. SX, Panels XXX: Combined histogram and two boxplots of NEG MSE values for stageRegress ###
+###################################################################################################
+
+# specify parameters
+classVar <- 'stageRegress'
+
+for (groupby in c('Cancer', 'Model')) {
+  
+  # prepare boxplot data
+  scores <- allscores[[classVar]]
+  dat <- as.data.frame(scores$neg_mse)
+  o_model <- rownames(dat)[order(apply(dat, 1, median), decreasing=T)]
+  o_cancer <- colnames(dat)[order(apply(dat, 2, median), decreasing=T)]
+  dat <- dat[o_model, o_cancer] %>% rownames_to_column('Model')
+  dat <- pivot_longer(dat, cols=colnames(dat)[-1], values_to='Neg. MSE', names_to='Cancer')
+  dat$Model <- factor(dat$Model, levels=o_model, ordered=T)
+  dat$Cancer <- factor(dat$Cancer, levels=o_cancer, ordered=T)
+  
+  # generate plot
+  if (groupby == 'Cancer') {
+    hues <- c(0,100)
+    text_angle <- 90
+    vjust_val <- 0.5
+  } else if (groupby == 'Model') {
+    hues <- c(230,330)
+    text_angle <- 45
+    vjust_val <- 1
+  }
+  p <- ggplot(dat, aes_string(x=groupby, y="`Neg. MSE`", fill=groupby)) +
+    geom_boxplot() +
+    theme_minimal() +
+    theme(legend.position='none',
+          axis.text=element_text(color='black', size=12),
+          axis.text.x=element_text(angle=text_angle, hjust=1, vjust=vjust_val),
+          axis.title=element_text(size=12),
+          axis.title.x=element_blank()) + 
+    scale_fill_hue(h=hues, c=75)
+  
+  assign(paste0('p_box_', groupby), p)
+}
+
+# prepare histogram data
+scores <- allscores[[classVar]]
+dat <- as.data.frame(scores$neg_mse)
+dat <- pivot_longer(dat, cols=colnames(dat), values_to='Neg. MSE', names_to='Cancer')
+
+# generate plot
+p_hist <- ggplot(dat, aes(y=`Neg. MSE`)) +
+  geom_density(fill=brewer.pal(3, 'Paired')[1]) +
+  theme_classic() +
+  theme(axis.text=element_text(color='black', size=12),
+        axis.title=element_text(size=12),
+        axis.ticks.x=element_blank(),
+        axis.text.x=element_blank()) +
+  xlab('Density')
+
+# generate combined plot
+pdf(file=paste0(fig_dir, '/', classVar, '_NegMSE_CombinedPlots.pdf'), width=7, height=3.5)
+plot_grid(p_hist, p_box_Cancer, p_box_Model, ncol=3, rel_widths=c(4,10,7), align='h', axis='tb', scale = 0.98)
+invisible(dev.off())
+
+
+###############################################################################
+### Fig. SX, Panel X: Heatmap of top cancer-specific genes for stageRegress ###
+###############################################################################
+
+# specify parameters
+classVar <- 'stageRegress'
+n_genes <- 3
+model <- 'Average'
+
+# prepare data
+scores <- allscores[[classVar]]
+dat <- as.data.frame(scores[[model]])
+o <- apply(dat, 2, function(x) order(x, decreasing=T))
+top_genes <- rownames(dat)[unique(as.vector(o[1:n_genes, ]))]
+dat <- dat[top_genes, ]
+
+# cluster columns based on correlation distance
+col_order <- hclust(dist(t(dat), method='euclidean'), method='ward.D2')$order
+dat <- dat[, col_order]
+row_order <- NULL
+for (i in seq(ncol(dat))) {
+  ro <- order(dat[, i], decreasing=T)
+  row_order <- c(row_order, setdiff(ro[1:n_genes], row_order))
+}
+dat <- dat[row_order, ]
+
+# specify annotation colors
+unique_modules <- unique(gene_data$module[row_order])
+annColors <- list(Function = viridis(4) %>%
+                    setNames(c('Capacity control', 'Folding', 'Trafficking', 'Glycosylation')))
+annColors$Function <- annColors$Function[intersect(names(annColors$Function), unique_modules)]
+annData <- gene_data[, c('module'), drop=F] %>% setNames('Function')
+
+# generate heatmap
+pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_topEach_heatmap.pdf'), width=4.5, height=5.5, onefile=F)
+pheatmap(dat,
+         scale='none',
+         color=magma(100),
+         cluster_rows=F,
+         cluster_cols=F,
+         breaks=seq(0,0.8,len=100),
+         angle_col=90,
+         annotation_row=annData,
+         annotation_colors=annColors)
+grid_linewidth <- 1
+grid_color <- 'black'
+grid.ls(grid.force())
+grid.gedit('matrix::GRID.rect', gp=gpar(col=grid_color, lwd=grid_linewidth))
+grid.gedit('row_annotation', gp=gpar(col=grid_color, lwd=grid_linewidth))
+grid.gedit('annotation_legend::GRID.rect', gp=gpar(col=grid_color, lwd=grid_linewidth))
+invisible(dev.off())
+
+
+
 
 
 
