@@ -22,13 +22,13 @@ proj_dir = os.path.dirname(os.getcwd())
 
 # ClassVar options: 'mutTP53', 'CancerStatus', 'TumorStageMerged',
 #                   'Race', 'Gender', 'Mutations', 'AllStageCombos'
-ClassVar = 'TumorStageMerged'
+ClassVar = 'CancerStatus'
 
 # Select which levels of the class variable to keep. Not needed for classVar='AllStageCombos'
-# VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']  # for 'CancerStatus'
+VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']  # for 'CancerStatus'
 # VarLevelsToKeep = ['FALSE', 'TRUE']  # for 'mutTP53' or 'Mutations'
 # VarLevelsToKeep = ['stage iv','stage x']  # for 'TumorStageMerged'
-VarLevelsToKeep = ['stage i', 'stage ii', 'stage iii', 'stage iv']
+# VarLevelsToKeep = ['stage i', 'stage ii', 'stage iii', 'stage iv']  # for 'TumorStageMerged' regression
 
 # specify offset to add to TPM values before log-transforming (to handle zeros)
 logTransOffset = 1  # transformed TPM = log(TPM + offset)
