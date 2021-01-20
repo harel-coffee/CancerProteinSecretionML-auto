@@ -44,7 +44,7 @@ med_tpm_threshold = 0.1
 # Specify the scoring metric that the model will try to maximize
 #   Examples for binary classification: 'accuracy', 'average_precision', 'f1', 'roc_auc'
 #   Examples for regression: 'explained_variance', 'neg_mean_squared_error', 'r2'
-score_metric = 'r2'
+score_metric = 'roc_auc'
 
 
 #==============================================================================
@@ -101,11 +101,11 @@ for CancerType in allCancerTypes:
             dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, mutClassVar, med_tpm_threshold)
             
             # fit models, rank genes, and perform cross-validation
-            dfRanks, dfCVscores_accuracy, dfCVscores_ROC = OF.performGeneRanking(dfAnalysis_fl_cd, mutClassVar, VarLevelsToKeep, logTransOffset, RS, score_metric)
+            dfRanks, dfCVscores = OF.performGeneRanking(dfAnalysis_fl_cd, mutClassVar, VarLevelsToKeep, logTransOffset, RS, score_metric)
             
             # write results to file
             resultsPath = proj_dir + '/' + output_dir + '/'
-            OF.writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, mutClassVar, VarLevelsToKeep, resultsPath)
+            OF.writeResultsToFile(dfRanks, dfCVscores, CancerType, mutClassVar, VarLevelsToKeep, resultsPath)
 
     elif ClassVar == 'AllStageCombos':
         all_tumor_combinations = [['stage i', 'stage ii'], ['stage i', 'stage iii'], ['stage i', 'stage iv'], \
@@ -134,11 +134,11 @@ for CancerType in allCancerTypes:
             dfAnalysis_fl_cd = OF.filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, med_tpm_threshold)
             
             # fit models, rank genes, and perform cross-validation
-            dfRanks, dfCVscores_accuracy, dfCVscores_ROC = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS, score_metric)
+            dfRanks, dfCVscores = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS, score_metric)
             
             # write results to file
             resultsPath = proj_dir + '/' + output_dir + '/'
-            OF.writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, ClassVar, VarLevelsToKeep, resultsPath)
+            OF.writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKeep, resultsPath)
         
         # re-assign class variable after looping
         ClassVar = 'AllStageCombos'
