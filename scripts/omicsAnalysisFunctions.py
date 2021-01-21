@@ -1331,7 +1331,7 @@ def writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKee
     print('Writing dataset, genes ranking and CV analysis results to a ' \
           'directory named "{0}"'.format(CancerType))
     
-    os.makedirs(parent_dir_name + CancerType , exist_ok=True)
+    os.makedirs(os.path.join(parent_dir_name, CancerType) , exist_ok=True)
 
     if len(VarLevelsToKeep) > 2 and ClassVar == 'TumorStageMerged':
         file_name_piece = 'TumorStage_regression'
@@ -1341,10 +1341,10 @@ def writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKee
     else:
         file_name_piece = ClassVar
 
-    dfRanks.to_csv(parent_dir_name + CancerType + '/' + CancerType + '_' \
-                   + file_name_piece + '_GenesRanking.csv', index=False)    
-    dfCVscores.to_csv(parent_dir_name + CancerType + '/' + CancerType \
-                      + '_' + file_name_piece + '_CVscores.csv', index=False)
+    dfRanks.to_csv(os.path.join(parent_dir_name, CancerType, CancerType \
+                   + '_' + file_name_piece + '_GenesRanking.csv'), index=False)
+    dfCVscores.to_csv(os.path.join(parent_dir_name, CancerType, CancerType \
+                   + '_' + file_name_piece + '_CVscores.csv'), index=False)
     
     print('\nDone!\n')
 

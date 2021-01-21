@@ -74,7 +74,7 @@ for CancerType in allCancerTypes:
     
 #    CancerType = 'COAD'
     
-    CancerDataStore = pd.HDFStore(proj_dir + '/data/' + dataStoreFile)
+    CancerDataStore = pd.HDFStore(path.join(proj_dir, 'data', dataStoreFile))
     dfCancerType = CancerDataStore.get(CancerType)
     CancerDataStore.close()
 
@@ -85,8 +85,8 @@ for CancerType in allCancerTypes:
     if ClassVar == 'Mutations':
         all_mutClassVars = [s for s in colnames if 'mut' == s[0:3]]  # extract mutation variables
         for mutClassVar in all_mutClassVars:                        
-            if (not overwrite_results) and (CancerType) in listdir(proj_dir + '/' + output_dir):
-                if any([True for x in listdir(proj_dir + '/' + output_dir + '/' + CancerType) if mutClassVar + '_GenesRanking' in x]):
+            if (not overwrite_results) and (CancerType) in listdir(path.join(proj_dir, output_dir)):
+                if any([True for x in listdir(path.join(proj_dir, output_dir, CancerType)) if mutClassVar + '_GenesRanking' in x]):
                     print('Already analyzed; skipping.')
                     continue
             # filter samples from data
@@ -104,7 +104,7 @@ for CancerType in allCancerTypes:
             dfRanks, dfCVscores = OF.performGeneRanking(dfAnalysis_fl_cd, mutClassVar, VarLevelsToKeep, logTransOffset, RS, score_metric)
             
             # write results to file
-            resultsPath = proj_dir + '/' + output_dir + '/'
+            resultsPath = path.join(proj_dir, output_dir)
             OF.writeResultsToFile(dfRanks, dfCVscores, CancerType, mutClassVar, VarLevelsToKeep, resultsPath)
 
     elif ClassVar == 'AllStageCombos':
@@ -115,10 +115,10 @@ for CancerType in allCancerTypes:
         for stage_combo in all_tumor_combinations:
             ClassVar = 'TumorStageMerged'
             VarLevelsToKeep = stage_combo
-            if (not overwrite_results) and (CancerType) in listdir(proj_dir + '/' + output_dir):
+            if (not overwrite_results) and (CancerType) in listdir(path.join(proj_dir, output_dir)):
                 file_name_piece = '_'.join(['TumorStage'] + VarLevelsToKeep)
                 file_name_piece = file_name_piece.replace(' ','')
-                if any([True for x in listdir(proj_dir + '/' + output_dir + '/' + CancerType) if file_name_piece + '_GenesRanking' in x]):
+                if any([True for x in listdir(path.join(proj_dir, output_dir, CancerType)) if file_name_piece + '_GenesRanking' in x]):
                     print('Already analyzed; skipping.')
                     continue
             
@@ -137,16 +137,16 @@ for CancerType in allCancerTypes:
             dfRanks, dfCVscores = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS, score_metric)
             
             # write results to file
-            resultsPath = proj_dir + '/' + output_dir + '/'
+            resultsPath = path.join(proj_dir, output_dir)
             OF.writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKeep, resultsPath)
         
         # re-assign class variable after looping
         ClassVar = 'AllStageCombos'
         
     else: 
-        if (not overwrite_results) and (CancerType) in listdir(proj_dir + '/' + output_dir):
-            if any([True for x in listdir(proj_dir + '/' + output_dir + '/' + CancerType) if ClassVar + '_GenesRanking' in x]) or \
-            (len(VarLevelsToKeep) > 2 and any([True for x in listdir(proj_dir + '/' + output_dir + '/' + CancerType) if 'regression' in x])):
+        if (not overwrite_results) and (CancerType) in listdir(path.join(proj_dir, output_dir)):
+            if any([True for x in listdir(path.join(proj_dir, output_dir, CancerType)) if ClassVar + '_GenesRanking' in x]) or \
+            (len(VarLevelsToKeep) > 2 and any([True for x in listdir(path.join(proj_dir, output_dir, CancerType)) if 'regression' in x])):
                 print('Already analyzed; skipping.')
                 continue
         
@@ -166,7 +166,7 @@ for CancerType in allCancerTypes:
         dfRanks, dfCVscores = OF.performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS, score_metric)
         
         # write results to file
-        resultsPath = proj_dir + '/' + output_dir + '/'
+        resultsPath = path.join(proj_dir, output_dir)
         OF.writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKeep, resultsPath)
         
         
