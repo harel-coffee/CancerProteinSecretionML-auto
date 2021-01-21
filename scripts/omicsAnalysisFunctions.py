@@ -642,7 +642,7 @@ def prepCancerTypeDict(hdfStore=False, inFile='allcancerdata', outFile='CancerDa
     """ 
     
     # Import data from csv to a data frame
-    df = ReadOMICSdataCSV('data/' + inFile)
+    df = ReadOMICSdataCSV('../data/' + inFile)
     df = df.dropna(subset = ['Project'])
     projects = df['Project'].unique()
     arr = []
@@ -659,7 +659,7 @@ def prepCancerTypeDict(hdfStore=False, inFile='allcancerdata', outFile='CancerDa
     
     # For hdfStore=True, we write the dictionay to a hdfStore.
     if hdfStore:
-        CancerDataStore = pd.HDFStore('data/' + outFile + '.h5')
+        CancerDataStore = pd.HDFStore('../data/' + outFile + '.h5')
         for (key, value) in cancerTypesDic.items():
             # keys are names of cancers, e.g., TCGA-BRCA. Using split to ignore the TCGA- part and use
             # the rest as the name. With prefix TCGA-, it is not a valid Python identifier.
