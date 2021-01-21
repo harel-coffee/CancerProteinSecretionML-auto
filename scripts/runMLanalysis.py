@@ -51,7 +51,7 @@ score_metric = 'roc_auc'
 # Define some paths and other run settings
 #==============================================================================
 
-dataStoreFile = 'CancerDataStore_psp.h5'
+dataStoreFile = 'CancerDataStore.h5'
 output_dir = 'results'
 overwrite_results = False
 allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
@@ -64,6 +64,13 @@ allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
 #==============================================================================
 # Main analysis section
 #==============================================================================
+
+# attempt to generate .h5 file from allcancerdata.csv if it does not exist
+if not path.isfile(path.join(proj_dir, 'data', dataStoreFile)):
+    if not path.isfile(path.join(proj_dir, 'data', 'allcancerdata.csv')):
+        raise valueError('dataStoreFile not found in data/ directory')
+    else:
+        OF.prepCancerTypeDict(hdfStore=True, inFile='allcancerdata', outFile=dataStoreFile.replace('.h5', ''))
 
 # create output directory if it does not yet exist
 if not path.isdir(path.join(proj_dir, output_dir)):
