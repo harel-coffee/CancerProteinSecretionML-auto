@@ -21,11 +21,12 @@ from itertools import cycle
 from sklearn import svm
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, AdaBoostClassifier
-from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor, AdaBoostRegressor
+from sklearn.linear_model import LogisticRegression, Ridge, Lasso
 from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 from sklearn.metrics import roc_curve, auc
 
-from xgboost import XGBClassifier
+from xgboost import XGBClassifier, XGBRegressor
 
 #dfPSP = pd.read_csv('BigDataProject/PSP_gene_data.csv')
 #dfSEC = pd.read_csv('BigDataProject/SEC_gene_data.csv')
@@ -336,6 +337,11 @@ def mapClassVar(dfdna, ClassVar, varLevels):
     iv) print the mapping. 
     """
     
+    if ClassVar == 'TumorStageMerged' and len(varLevels) > 2:
+        # special case when requesting a regression - tumor levels should be
+        # ordered alphabetically (i.e., "i", "ii", "iii", "iv")
+        varLevels.sort()
+    
     df_le = dfdna.copy()
     df_le[ClassVar] = [varLevels.index(x) for x in df_le[ClassVar]]
 
@@ -475,6 +481,10 @@ def CVScorer(models, CV, X, y, scoring, shuffle, folds=10):
                 modelName = 'LassoRegression'
             elif model.penalty == 'l2':
                 modelName = 'RidgeRegression'
+        elif modelName == 'Lasso':
+            modelName = 'LassoRegression'
+        elif modelName == 'Ridge':
+            modelName = 'RidgeRegression'
         scores = cross_val_score(model, X, y, scoring=scoring, cv=cv, n_jobs=-1)
         dfCVscores = dfCVscores.append(pd.Series([modelName, scoring, scores.mean(),(scores.mean() - 2*scores.std()), (scores.mean() + 2*scores.std())],
                                                  index=dfCVscores.columns), ignore_index=True)
@@ -1112,30 +1122,12 @@ def filterSamplesFromData(dfCancerType, ClassVar, VarLevelsToKeep):
 ###############################################################################
 
 
-def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_tpm_threshold):
+def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, med_tpm_threshold):
     """
     Remove genes from dataset according to specified parameters.
     """
     
-    if dimReduction: # step into dim reduction if dimReduction is set to True
-        signifDEgenes = pd.read_excel('PSP_genes_signifDE.xlsx')
-        signifDECancerTypes = signifDEgenes.columns[3:].tolist()
-        signifDECancerTypes = [s.split('_')[1] for s in signifDECancerTypes]
-        if CancerType.split('-')[1] in signifDECancerTypes: # Make sure that the selected cancer type exists
-            if dimRedMethod == 'numSigCancers':
-                signifDEgenes = signifDEgenes.loc[signifDEgenes['num sig cancers']>=numSigCancers, 'gene name'].tolist()
-            elif dimRedMethod == 'signifDEgenes':
-                signifDEgenes = signifDEgenes.loc[signifDEgenes['Padj_' + CancerType.split('-')[1]]<=0.01, 'gene name'].tolist()
-            signifDEgenes.insert(0,ClassVar)
-            dfAnalysis_fl = dfAnalysis_fl[signifDEgenes]
-            print('Size of the dataframe after filtering signifDEgenes: {0}'.format(dfAnalysis_fl.shape))
-            dfAnalysis_fl_cd = dfAnalysis_fl
-        else:
-            print('Dim reduction cannot be performed because the cancer type' \
-                  '"{0}" does not have paired samples.' \
-                  .format(CancerType))
-            
-    elif med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
+    if med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
         # Look at the list low_tpm_genes, these are the genes which will be removed.
         data_stats, low_tpm_genes = GeneExpression(dfAnalysis_fl,med_tpm_threshold)
         print('\n*********************************************')
@@ -1171,16 +1163,16 @@ def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, dimReduction, med_t
 ###############################################################################
 
 
-def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS):
+def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffset, RS, score_metric):
     """
     Fit classification models, rank genes (features) based on feature 
     importance scores, and perform a cross-fold validation analysis to assess
-    the accuracy and ROC AUC of each model.
+    the predictive performance of each model.
     """
     
     # Perform label encoding for the ClassVar and log-transform data
     dfAnalysis_fl_cd = mapClassVar(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep)
-    X, y = fitLogTransform(dfAnalysis_fl_cd, logTransOffset)    
+    X, y = fitLogTransform(dfAnalysis_fl_cd, logTransOffset)
     
     print('Performing ranking of the genes...\n')
     
@@ -1191,69 +1183,109 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
     # for random forest methods, use floor(sqrt(numfeats)) as the number of estimators
     num_est = int(X.shape[1]**0.5)
         
-    
-    extc = ExtraTreesClassifier(n_estimators=num_est, random_state=RS)
-    extc.fit(X, y)
-    ranks['ExtraTreesClassifier'] = Ranks2Dict(extc.feature_importances_, geneNames)
-    print('- Extra Trees Classifier complete.')
-    
-    rfc = RandomForestClassifier(n_estimators=num_est, random_state=RS)
-    rfc.fit(X, y)
-    ranks['RandomForestClassifier'] = Ranks2Dict(rfc.feature_importances_, geneNames)
-    print('- Random Forest Classifier complete.')
+    if len(VarLevelsToKeep) == 2:
         
-    AdabCLF = AdaBoostClassifier(n_estimators=num_est)
-    AdabCLF.fit(X, y)
-    ranks['AdaBoostClassifier'] = Ranks2Dict(AdabCLF.feature_importances_, geneNames)
-    print('- AdaBoost Classifier complete.')
+        # define models (used later for CV analysis)
+        models = [ExtraTreesClassifier(n_estimators=num_est, random_state=RS), # 0
+                  RandomForestClassifier(n_estimators=num_est, random_state=RS), # 1
+                  AdaBoostClassifier(n_estimators=num_est), # 2
+                  XGBClassifier(), # 3
+                  LinearDiscriminantAnalysis(), # 4
+                  svm.SVC(kernel='linear'), # 5
+                  LogisticRegression(penalty='l1', solver='saga', max_iter=10000, random_state=RS),  # 6
+                  LogisticRegression(penalty='l2', solver='saga', max_iter=10000, random_state=RS)]  # 7
         
-    xgb = XGBClassifier()
-    xgb.fit(X, y)
-    ranks['XGBClassifier'] = Ranks2Dict(xgb.feature_importances_, geneNames)
-    print('- XGB Classifier complete.')
+        extc = ExtraTreesClassifier(n_estimators=num_est, random_state=RS)
+        extc.fit(X, y)
+        ranks['ExtraTreesClassifier'] = Ranks2Dict(extc.feature_importances_, geneNames)
+        print('- Extra Trees Classifier complete.')
         
-    lda =  LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto')
-    lda.fit(X, y)
-    ranks['LinearDiscriminantAnalysis'] = Ranks2Dict(np.abs(lda.coef_[0]), geneNames)
-    print('- Linear Discriminant Analysis complete.')
+        rfc = RandomForestClassifier(n_estimators=num_est, random_state=RS)
+        rfc.fit(X, y)
+        ranks['RandomForestClassifier'] = Ranks2Dict(rfc.feature_importances_, geneNames)
+        print('- Random Forest Classifier complete.')
+            
+        AdabCLF = AdaBoostClassifier(n_estimators=num_est)
+        AdabCLF.fit(X, y)
+        ranks['AdaBoostClassifier'] = Ranks2Dict(AdabCLF.feature_importances_, geneNames)
+        print('- AdaBoost Classifier complete.')
+            
+        xgb = XGBClassifier()
+        xgb.fit(X, y)
+        ranks['XGBClassifier'] = Ranks2Dict(xgb.feature_importances_, geneNames)
+        print('- XGB Classifier complete.')
+            
+        lda =  LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto')
+        lda.fit(X, y)
+        ranks['LinearDiscriminantAnalysis'] = Ranks2Dict(np.abs(lda.coef_[0]), geneNames)
+        print('- Linear Discriminant Analysis complete.')
+            
+        svmSVC = svm.SVC(kernel='linear')
+        svmSVC.fit(X, y)
+        ranks['SVC'] = Ranks2Dict(np.abs(svmSVC.coef_[0]), geneNames)
+        print('- SVC complete.')
         
-    svmSVC = svm.SVC(kernel='linear')
-    svmSVC.fit(X, y)
-    ranks['SVC'] = Ranks2Dict(np.abs(svmSVC.coef_[0]), geneNames)
-    print('- SVC complete.')
-    
-    # Run a logistic regression using Lasso (L1) regularization
-    lasso = LogisticRegression(penalty='l1', solver='saga', max_iter=10000, random_state=RS, n_jobs=-1)
-    lasso.fit(X, y)
-    ranks['LassoRegression'] = Ranks2Dict(np.abs(lasso.coef_[0]), geneNames)
-    print('- Lasso Regression complete.')
-    
-    # Run a logistic regression using Ridge (L2) regularization
-    ridge = LogisticRegression(penalty='l2', solver='saga', max_iter=10000, random_state=RS, n_jobs=-1)
-    ridge.fit(X, y)
-    ranks['RidgeRegression'] = Ranks2Dict(np.abs(ridge.coef_[0]), geneNames)
-    print('- Ridge Regression complete.')
-    
-    
-    # Calculation of individual gene performance (very slow!)
-    
-#        # Computing genes ranking based on their individual performance using the SVM model.
-#        indGeneScores = []
-#        for i in range(X.shape[1]):
-#             score = cross_val_score(svmSVC, X[:, i:i+1], y, scoring='accuracy',
-#                                     cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
-#             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
-#        ranks['SVMlinearindvGenes'] = dict(zip(geneNames, indGeneScores ))
-#        print('- SVMlinearindvGenes complete.')
-#    
-#        # Computing genes ranking based on their individual performance using the LDA model.
-#        indGeneScores = []
-#        for i in range(X.shape[1]):
-#             score = cross_val_score(lda, X[:, i:i+1], y, scoring='accuracy',
-#                                     cv=10, n_jobs=-1)#StratifiedKFold(n_splits=10, shuffle=True))#ShuffleSplit(len(X), 3, .3))
-#             indGeneScores.append((round(np.mean(score), 10)))#, geneNames[i]))
-#        ranks['LDAindvGenes'] = dict(zip(geneNames, indGeneScores ))
-#        print('LDAindvGenes complete.')
+        # Run a logistic regression using Lasso (L1) regularization
+        lasso = LogisticRegression(penalty='l1', solver='saga', max_iter=10000, random_state=RS, n_jobs=-1)
+        lasso.fit(X, y)
+        ranks['LassoRegression'] = Ranks2Dict(np.abs(lasso.coef_[0]), geneNames)
+        print('- Lasso Regression complete.')
+        
+        # Run a logistic regression using Ridge (L2) regularization
+        ridge = LogisticRegression(penalty='l2', solver='saga', max_iter=10000, random_state=RS, n_jobs=-1)
+        ridge.fit(X, y)
+        ranks['RidgeRegression'] = Ranks2Dict(np.abs(ridge.coef_[0]), geneNames)
+        print('- Ridge Regression complete.')
+        
+    else:
+
+        # define models (used later for CV analysis)
+        models = [ExtraTreesRegressor(n_estimators=num_est, random_state=RS), # 0
+                  RandomForestRegressor(n_estimators=num_est, random_state=RS), # 1
+                  AdaBoostRegressor(n_estimators=num_est), # 2
+                  XGBRegressor(), # 3
+                  svm.SVR(kernel='linear'), # 4
+                  Lasso(max_iter=10000, random_state=RS),  # 5
+                  Ridge(max_iter=10000, random_state=RS)]  # 6
+        
+        extr = ExtraTreesRegressor(n_estimators=num_est, random_state=RS)
+        extr.fit(X, y)
+        ranks['ExtraTreesRegressor'] = Ranks2Dict(extr.feature_importances_, geneNames)
+        print('- Extra Trees Regressor complete.')
+        
+        rfr = RandomForestRegressor(n_estimators=num_est, random_state=RS)
+        rfr.fit(X, y)
+        ranks['RandomForestRegressor'] = Ranks2Dict(rfr.feature_importances_, geneNames)
+        print('- Random Forest Regressor complete.')
+            
+        AdabR = AdaBoostRegressor(n_estimators=num_est)
+        AdabR.fit(X, y)
+        ranks['AdaBoostRegressor'] = Ranks2Dict(AdabR.feature_importances_, geneNames)
+        print('- AdaBoost Regressor complete.')
+            
+        xgb = XGBRegressor()
+        xgb.fit(X, y)
+        ranks['XGBRegressor'] = Ranks2Dict(xgb.feature_importances_, geneNames)
+        print('- XGB Regressor complete.')
+            
+        # Note: LDA is not applicable for regression-based problems
+            
+        svmSVR = svm.SVR(kernel='linear')
+        svmSVR.fit(X, y)
+        ranks['SVR'] = Ranks2Dict(np.abs(svmSVR.coef_[0]), geneNames)
+        print('- SVR complete.')
+        
+        # Run a linear regression using Lasso (L1) regularization
+        lasso = Lasso(max_iter=10000, random_state=RS)
+        lasso.fit(X, y)
+        ranks['LassoRegression'] = Ranks2Dict(np.abs(lasso.coef_), geneNames)
+        print('- Lasso Regression complete.')
+        
+        # Run a linear regression using Ridge (L2) regularization
+        ridge = Ridge(max_iter=10000, random_state=RS)
+        ridge.fit(X, y)
+        ranks['RidgeRegression'] = Ranks2Dict(np.abs(ridge.coef_), geneNames)
+        print('- Ridge Regression complete.')
 
 
     # calculate average rank for each gene    
@@ -1262,25 +1294,6 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
         r[name] = round(np.mean([ranks[method][name] for method in ranks.keys()]), 10)
     ranks['Average'] = r
     
-    
-    # Recursive feature elimination (RFE) methods
-
-#    rfeSVM = RFE(svm.SVC(kernel='linear'), n_features_to_select=1)
-#    rfeSVM.fit(X,y)
-#    ranks['rfeSVM'] = dict(zip(geneNames, rfeSVM.ranking_ ))
-#    print('- rfeSVM complete.')
-#    methods.append('SVMrfe')
-#    
-#    rfeET = RFE(extc, n_features_to_select=1)
-#    rfeET.fit(X,y)
-#    ranks['rfeExtraTree'] = dict(zip(geneNames, rfeET.ranking_ ))
-#    methods.append('rfeExtraTree')
-#    
-#    rfeRFC = RFE(RandomForestClassifier(n_estimators=200, random_state=RS), n_features_to_select=1)
-#    rfeRFC.fit(X,y)
-#    ranks['rfeRFC'] = dict(zip(geneNames, rfeRFC.ranking_ ))#Ranks2Dict(np.array(rfeRFC.ranking_, dtype=float), geneNames)#, order=1)
-#    print('- rfeRFC complete.')    
-
     # organize and sort ranks
     dfRanks = pd.DataFrame.from_dict(ranks)
     dfRanks.reset_index(inplace=True)
@@ -1290,55 +1303,39 @@ def performGeneRanking(dfAnalysis_fl_cd, ClassVar, VarLevelsToKeep, logTransOffs
     print('\nDone!\n')
     print('\n*********************************************')
     
-    
-    # Run model cross-validation and determine accuracy and ROC AUC
-    models = [ExtraTreesClassifier(n_estimators=num_est, random_state=RS), # 0
-              RandomForestClassifier(n_estimators=num_est, random_state=RS), # 1
-              AdaBoostClassifier(n_estimators=num_est), # 2
-              XGBClassifier(), # 3
-              LinearDiscriminantAnalysis(), # 4
-              svm.SVC(kernel='linear'), # 5
-              LogisticRegression(penalty='l1', solver='saga', max_iter=10000, random_state=RS),  # 6
-              LogisticRegression(penalty='l2', solver='saga', max_iter=10000, random_state=RS)  # 7
-             ]
-
+    # Run model cross-validation and determine model performance
     CV = 'Validation: SKF'
     shuffle = True
-    scoring = 'accuracy'
     folds = 10
-
-    print('Performing models CV analysis using accuracy...\n')
-    dfCVscores_accuracy = CVScorer(models, CV, X, y, scoring, shuffle, folds)
+    if len(VarLevelsToKeep) > 2 and score_metric in ['accuracy', 'f1', 'roc_auc', 'average_precision']:
+        raise ValueError('The provided score_metric is not applicable for regression problems!')
+    elif len(VarLevelsToKeep) == 2 and score_metric in ['explained_variance', 'neg_mean_squared_error', 'r2']:
+        raise ValueError('The provided score_metric is not applicable for binary classification problems!')
+    print('Performing models CV analysis...\n')
+    dfCVscores = CVScorer(models, CV, X, y, score_metric, shuffle, folds)
     print('\nDone!\n')
-    
-    if len(VarLevelsToKeep) == 2:
-        scoring = 'roc_auc'
-        print('Performing models CV analysis using area under the ROC curve...\n')
-        dfCVscores_ROC = CVScorer(models, CV, X, y, scoring, shuffle, folds)
-        print('\nDone!\n')
-    else:
-        print('Skipping CV analysis using area under the ROC curve. ' \
-              'This is possible for binary problems only.')
-    
-    return dfRanks, dfCVscores_accuracy, dfCVscores_ROC
+
+    return dfRanks, dfCVscores
 
 
 ###############################################################################
 
 
-def writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType, ClassVar, VarLevelsToKeep, resultsPath):
+def writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKeep, resultsPath):
     """
-    Export gene ranks and model scores (accuracy and ROC AUC) to .csv files
+    Export gene ranks and model scores to .csv files
     """
 
     parent_dir_name = resultsPath
     
-    print('Writing dataset, genees ranking and CV analysis results to a ' \
+    print('Writing dataset, genes ranking and CV analysis results to a ' \
           'directory named "{0}"'.format(CancerType))
     
     os.makedirs(parent_dir_name + CancerType , exist_ok=True)
 
-    if ClassVar in ['TumorStage', 'TumorStageMerged', 'TumorStageBinary']:
+    if len(VarLevelsToKeep) > 2 and ClassVar == 'TumorStageMerged':
+        file_name_piece = 'TumorStage_regression'
+    elif ClassVar in ['TumorStage', 'TumorStageMerged', 'TumorStageBinary']:
         file_name_piece = '_'.join(['TumorStage'] + VarLevelsToKeep)
         file_name_piece = file_name_piece.replace(' ','')
     else:
@@ -1346,11 +1343,8 @@ def writeResultsToFile(dfRanks, dfCVscores_accuracy, dfCVscores_ROC, CancerType,
 
     dfRanks.to_csv(parent_dir_name + CancerType + '/' + CancerType + '_' \
                    + file_name_piece + '_GenesRanking.csv', index=False)    
-    dfCVscores_accuracy.to_csv(parent_dir_name + CancerType + '/' + CancerType \
-                               + '_' + file_name_piece + '_CVscores_Accuracy.csv', index=False)
-    if len(VarLevelsToKeep) == 2:
-        dfCVscores_ROC.to_csv(parent_dir_name + CancerType + '/' + CancerType \
-                              + '_' + file_name_piece + '_CVscores_ROCAUC.csv', index=False)
+    dfCVscores.to_csv(parent_dir_name + CancerType + '/' + CancerType \
+                      + '_' + file_name_piece + '_CVscores.csv', index=False)
     
     print('\nDone!\n')
 

@@ -13,7 +13,7 @@ library(cowplot)
 
 # specify main project directory and the directory where to save figures
 proj_dir <- '/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML'
-fig_dir <- paste0(proj_dir, '/doc/manuscript/figures/fig_pieces')
+fig_dir <- paste0(proj_dir, '/doc/manuscript/REVISION/figures/fig_pieces')
 
 
 ##############################
@@ -38,11 +38,17 @@ stages <- c('stagei_stageii', 'stagei_stageiii', 'stagei_stageiv', 'stageii_stag
 stageNames <- c('stage1v2', 'stage1v3', 'stage1v4', 'stage2v3', 'stage2v4', 'stage3v4')
 cancer_stages <- unlist(lapply(cancers, function(x) paste(x, stageNames, sep='_')))
 
-score_vars <- c('scores_cancerStatus', 'scores_mutTP53', 'scores_tumorStage')
+score_vars <- c('scores_cancerStatus', 'scores_mutTP53', 'scores_tumorStage', 'scores_stageRegress')
 # DE_vars <- c('DE_cancerStatus', 'DE_mutTP53', 'DE_tumorStage')
+
 model_names <- c('ExtraTreesClassifier', 'RandomForestClassifier', 'AdaBoostClassifier', 'XGBClassifier',
                  'LinearDiscriminantAnalysis', 'SVC', 'LassoRegression', 'RidgeRegression', 'Average')
+reg_model_names <- c('ExtraTreesRegressor', 'RandomForestRegressor', 'AdaBoostRegressor', 'XGBRegressor',
+                     'SVR', 'LassoRegression', 'RidgeRegression', 'Average')
+
 new_model_names <- c('Extra Trees', 'Random Forest', 'AdaBoost', 'XGBoost', 'LDA', 'SVM', 'Lasso', 'Ridge', 'Average')
+new_reg_model_names <- c('Extra Trees', 'Random Forest', 'AdaBoost', 'XGBoost', 'SVM', 'Lasso', 'Ridge', 'Average')
+
 DE_vars <- c('DE_log2FC', 'DE_FDR', 'DE_FDRscore')
 
 for (x in score_vars) assign(x, list())
@@ -51,15 +57,21 @@ for (model in c(model_names, DE_vars)) {
   scores_mutTP53[[model]]      <- matrix(NA, nrow=length(genes), ncol=length(cancers), dimnames=list(genes, cancers))
   scores_tumorStage[[model]]   <- matrix(NA, nrow=length(genes), ncol=length(cancer_stages), dimnames=list(genes, cancer_stages))
 }
-scores_cancerStatus$roc_auc <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancers), dimnames=list(model_names[1:(length(model_names)-1)], cancers))
-scores_mutTP53$roc_auc      <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancers), dimnames=list(model_names[1:(length(model_names)-1)], cancers))
-scores_tumorStage$roc_auc   <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancer_stages), dimnames=list(model_names[1:(length(model_names)-1)], cancer_stages))
+for (reg_model in c(reg_model_names)) {
+  scores_stageRegress[[reg_model]] <- matrix(NA, nrow=length(genes), ncol=length(cancers), dimnames=list(genes, cancers))
+}
+
+scores_cancerStatus$model_score <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancers), dimnames=list(model_names[1:(length(model_names)-1)], cancers))
+scores_mutTP53$model_score      <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancers), dimnames=list(model_names[1:(length(model_names)-1)], cancers))
+scores_tumorStage$model_score   <- matrix(NA, nrow=length(model_names)-1, ncol=length(cancer_stages), dimnames=list(model_names[1:(length(model_names)-1)], cancer_stages))
+scores_stageRegress$model_score <- matrix(NA, nrow=length(reg_model_names)-1, ncol=length(cancers), dimnames=list(reg_model_names[1:(length(reg_model_names)-1)], cancers))
 
 for (cancer in cancers) {
   cancer_path <- paste0(proj_dir, '/results/', cancer)
   files_cancerStatus <- dir(cancer_path, 'CancerStatus')
   files_mutTP53 <- dir(cancer_path, 'mutTP53')
-  files_tumorStage <- dir(cancer_path, 'TumorStage')
+  files_stageRegress <- dir(cancer_path, 'TumorStage_regression')
+  files_tumorStage <- setdiff(dir(cancer_path, 'TumorStage'), files_stageRegress)
   
   if (length(files_cancerStatus) > 0) {
     scores <- read.csv(paste0(cancer_path, '/', files_cancerStatus[grepl('GenesRanking', files_cancerStatus)]), row.names=1)
@@ -71,8 +83,8 @@ for (cancer in cancers) {
     scores_cancerStatus$DE_FDR[, cancer] <- de_res$FDR[match(genes, rownames(de_res))]
     scores_cancerStatus$DE_FDRscore[, cancer] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
     
-    roc_auc <- read.csv(paste0(cancer_path, '/', files_cancerStatus[grepl('ROCAUC', files_cancerStatus)]), row.names=1)
-    scores_cancerStatus$roc_auc[, cancer] <- roc_auc$Score[match(model_names[1:(length(model_names)-1)], rownames(roc_auc))]
+    model_score <- read.csv(paste0(cancer_path, '/', files_cancerStatus[grepl('CVscores', files_cancerStatus)]), row.names=1)
+    scores_cancerStatus$model_score[, cancer] <- model_score$Score[match(model_names[1:(length(model_names)-1)], rownames(model_score))]
   }
   
   if (length(files_mutTP53) > 0) {
@@ -85,8 +97,8 @@ for (cancer in cancers) {
     scores_mutTP53$DE_FDR[, cancer] <- de_res$FDR[match(genes, rownames(de_res))]
     scores_mutTP53$DE_FDRscore[, cancer] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
     
-    roc_auc <- read.csv(paste0(cancer_path, '/', files_mutTP53[grepl('ROCAUC', files_mutTP53)]), row.names=1)
-    scores_mutTP53$roc_auc[, cancer] <- roc_auc$Score[match(model_names[1:(length(model_names)-1)], rownames(roc_auc))]
+    model_score <- read.csv(paste0(cancer_path, '/', files_mutTP53[grepl('CVscores', files_mutTP53)]), row.names=1)
+    scores_mutTP53$model_score[, cancer] <- model_score$Score[match(model_names[1:(length(model_names)-1)], rownames(model_score))]
   }
   
   if (length(files_tumorStage) > 0) {
@@ -106,9 +118,18 @@ for (cancer in cancers) {
       scores_tumorStage$DE_FDR[, f_name] <- de_res$FDR[match(genes, rownames(de_res))]
       scores_tumorStage$DE_FDRscore[, f_name] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
       
-      roc_auc <- read.csv(paste0(cancer_path, '/', sub('GenesRanking', 'CVscores_ROCAUC', f)), row.names=1)
-      scores_tumorStage$roc_auc[, f_name] <- roc_auc$Score[match(model_names[1:(length(model_names)-1)], rownames(roc_auc))]
+      model_score <- read.csv(paste0(cancer_path, '/', sub('GenesRanking', 'CVscores', f)), row.names=1)
+      scores_tumorStage$model_score[, f_name] <- model_score$Score[match(model_names[1:(length(model_names)-1)], rownames(model_score))]
     }
+  }
+  
+  if (length(files_stageRegress) > 0) {
+    scores <- read.csv(paste0(cancer_path, '/', files_stageRegress[grepl('GenesRanking', files_stageRegress)]), row.names=1)
+    for (reg_model in reg_model_names) {
+      scores_stageRegress[[reg_model]][, cancer] <- scores[match(genes, rownames(scores)), reg_model]
+    }
+    model_score <- read.csv(paste0(cancer_path, '/', files_stageRegress[grepl('CVscores', files_stageRegress)]), row.names=1)
+    scores_stageRegress$model_score[, cancer] <- model_score$Score[match(reg_model_names[1:(length(reg_model_names)-1)], rownames(model_score))]
   }
   
 }
@@ -126,14 +147,19 @@ keep_cancers <- colnames(scores_tumorStage$Average)[colSums(is.na(scores_tumorSt
 for (item in names(scores_tumorStage)) {
   scores_tumorStage[[item]] <- scores_tumorStage[[item]][, keep_cancers] %>% replace_na(0)
 }
+keep_cancers <- colnames(scores_stageRegress$Average)[colSums(is.na(scores_stageRegress$Average)) < nrow(scores_stageRegress$Average)]
+for (item in names(scores_stageRegress)) {
+  scores_stageRegress[[item]] <- scores_stageRegress[[item]][, keep_cancers] %>% replace_na(0)
+}
 
-# rename models in roc_auc slot
-rownames(scores_cancerStatus$roc_auc) <- new_model_names[match(rownames(scores_cancerStatus$roc_auc), model_names)]
-rownames(scores_mutTP53$roc_auc) <- new_model_names[match(rownames(scores_mutTP53$roc_auc), model_names)]
-rownames(scores_tumorStage$roc_auc) <- new_model_names[match(rownames(scores_tumorStage$roc_auc), model_names)]
+# rename models in model_score slots
+rownames(scores_cancerStatus$model_score) <- new_model_names[match(rownames(scores_cancerStatus$model_score), model_names)]
+rownames(scores_mutTP53$model_score) <- new_model_names[match(rownames(scores_mutTP53$model_score), model_names)]
+rownames(scores_tumorStage$model_score) <- new_model_names[match(rownames(scores_tumorStage$model_score), model_names)]
+rownames(scores_stageRegress$model_score) <- new_reg_model_names[match(rownames(scores_stageRegress$model_score), reg_model_names)]
 
 # combine scores into list and remove intermediate variables
-allscores <- list(cancerStatus=scores_cancerStatus, mutTP53=scores_mutTP53, tumorStage=scores_tumorStage)
+allscores <- list(cancerStatus=scores_cancerStatus, mutTP53=scores_mutTP53, tumorStage=scores_tumorStage, stageRegress=scores_stageRegress)
 rm(list=setdiff(ls(), c('proj_dir', 'expdata', 'allscores', 'fig_dir', 'gene_data')))
 invisible(gc())
 
@@ -165,7 +191,7 @@ invisible(dev.off())
 #####################################################
 
 # specify parameters
-classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
 n_genes <- 10  # specify number of genes to include
 sort_by <- 'mean'  # 'mean' or 'top each'
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
@@ -210,10 +236,10 @@ invisible(dev.off())
 #####################################################
 
 # specify parameters
-classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
 group_cancers <- T  # if 'tumorStage', stages will be grouped (averaged) together by cancer type
-n_genes <- 5  # specify number of genes to include
-sort_by <- 'top each'  # 'mean' or 'top each'
+n_genes <- 10  # specify number of genes to include
+sort_by <- 'mean'  # 'mean' or 'top each'
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
 cancer_types <- NULL #c('ACC','KIRP','KIRC','THCA','TGCT')  # use NULL to keep all available cancer types
 
@@ -269,7 +295,7 @@ invisible(dev.off())
 ###################################################################################
 
 # specify parameters
-classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
 n_genes <- 5  # specify number of genes to include
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
 cancers <- NULL #c('STAD', 'READ', 'COAD', 'KICH', 'THCA')
@@ -277,7 +303,9 @@ cancers <- NULL #c('STAD', 'READ', 'COAD', 'KICH', 'THCA')
 # prepare data
 scores <- allscores[[classVar]]
 dat <- as.data.frame(scores[[model]])
-dat <- dat[, colnames(dat) %in% cancers]
+if (!is.null(cancers)) {
+  dat <- dat[, colnames(dat) %in% cancers]
+}
 o <- apply(dat, 2, function(x) order(x, decreasing=T))
 top_genes <- rownames(dat)[unique(as.vector(o[1:n_genes, ]))]
 dat <- dat[top_genes, ]
@@ -296,9 +324,11 @@ dat <- dat[row_order, ]
 # specify annotation colors
 # annColors <- list(module = brewer.pal(4, 'Set1') %>% setNames(levels(gene_data$module)),
 #                   subsystem = c(brewer.pal(12, 'Set3'), '#969696') %>% setNames(levels(gene_data$subsystem)))
-annColors <- list(Function = viridis(3, begin=0.4) %>% setNames(unique(gene_data$module[row_order])))
+unique_modules <- unique(gene_data$module[row_order])
+annColors <- list(Function = viridis(4) %>%
+                    setNames(c('Capacity control', 'Folding', 'Trafficking', 'Glycosylation')))
+annColors$Function <- annColors$Function[intersect(names(annColors$Function), unique_modules)]
 annData <- gene_data[, c('module'), drop=F] %>% setNames('Function')
-
 
 # generate heatmap
 pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_topEach_heatmap.pdf'), width=3+2.3*ncol(dat)/22, height=4, onefile=F)
@@ -307,7 +337,7 @@ pheatmap(dat,
          color=magma(100),
          cluster_rows=F,
          cluster_cols=F,
-         breaks=seq(0,0.6,len=100),
+         breaks=seq(0,0.8,len=100),
          angle_col=90,
          annotation_row=annData,
          annotation_colors=annColors)
@@ -325,7 +355,7 @@ invisible(dev.off())
 #################################################
 
 # specify parameters
-classVar <- 'mutTP53'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
 
 # prepare data
@@ -335,7 +365,7 @@ dat <- as.data.frame(apply(scores[[model]], 1, mean)) %>% setNames('Mean score')
 # generate plot
 pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_histogram.pdf'), width=4, height=3)
 ggplot(dat, aes(x=`Mean score`)) +
-  geom_histogram(color='black', fill=values=brewer.pal(3,'Paired')[1], breaks=seq(0, 0.5, length.out=50)) +
+  geom_histogram(color='black', fill=brewer.pal(3,'Paired')[1], breaks=seq(0, 0.5, length.out=50)) +
   theme_minimal() +
   theme(axis.text=element_text(color='black', size=12),
         axis.title=element_text(size=12)) + 
@@ -415,37 +445,32 @@ plot_grid(p_hist, p_box, ncol=2, rel_widths=c(1,1), align='h', axis='tb', scale 
 invisible(dev.off())
 
 
-##################################################
-### Fig. X, Panel X: Boxplot of ROC AUC values ###
-##################################################
+######################################################
+### Fig. X, Panel X: Boxplot of model score values ###
+######################################################
 
 # specify parameters
-classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus'
+classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
 groupby <- 'Cancer'  # 'Cancer' or 'Model'
+score_name <- 'ROC AUC'  # name of model scoring metric for use in labeling plot
+
+# remove problematic chacters from score_name
+score_var <- gsub(' |[.]', '', score_name)
 
 # prepare data
 scores <- allscores[[classVar]]
-dat <- as.data.frame(scores$roc_auc)
-
-if (classVar == 'tumorStage') {
-  colnames(dat) <- sub('_', ' (', colnames(dat))
-  colnames(dat) <- paste0(sub('stage', 'stage ', colnames(dat)), ')')
-}
+dat <- as.data.frame(scores$model_score)
 
 o_model <- rownames(dat)[order(apply(dat, 1, median), decreasing=T)]
 o_cancer <- colnames(dat)[order(apply(dat, 2, median), decreasing=T)]
 dat <- dat[o_model, o_cancer] %>% rownames_to_column('Model')
-dat <- pivot_longer(dat, cols=colnames(dat)[-1], values_to='ROC AUC', names_to='Cancer')
+dat <- pivot_longer(dat, cols=colnames(dat)[-1], values_to=score_var, names_to='Cancer')
 dat$Model <- factor(dat$Model, levels=o_model, ordered=T)
 dat$Cancer <- factor(dat$Cancer, levels=o_cancer, ordered=T)
 
 # generate plot
 if (groupby == 'Cancer') {
-  if (classVar == 'tumorStage') {
-    plot_width <- 15
-  } else {
-    plot_width <- 6
-  }
+  plot_width <- 6
   plot_height <- 4
   hues <- c(0,100)
   text_angle <- 90
@@ -457,34 +482,37 @@ if (groupby == 'Cancer') {
   text_angle <- 45
   vjust_val <- 1
 }
-pdf(file=paste0(fig_dir, '/', classVar, '_ROCAUC_', groupby, '_boxplot.pdf'), width=plot_width, height=plot_height)
-ggplot(dat, aes_string(x=groupby, y="`ROC AUC`", fill=groupby)) +
+
+pdf(file=paste0(fig_dir, '/', classVar, '_', score_var, '_', groupby, '_boxplot.pdf'), width=plot_width, height=plot_height)
+ggplot(dat, aes_string(x=groupby, y=score_var, fill=groupby)) +
   geom_boxplot() +
-  # geom_violin(draw_quantiles=0.5, scale='width') +
   theme_minimal() +
   theme(legend.position='none',
         axis.text=element_text(color='black', size=12),
         axis.text.x=element_text(angle=text_angle, hjust=1, vjust=vjust_val),
         axis.title=element_text(size=12)) + 
   xlab(groupby) +
+  ylab(score_name) +
   scale_fill_hue(h=hues, c=75)
-  # coord_cartesian(ylim=c(0,1))
-# geom_violin(trim=F) + 
 invisible(dev.off())
 
 
-#####################################################################################
-### Fig. X, Panel X: Boxplot of tumorStage ROC AUC values, grouped by cancer type ###
-#####################################################################################
+#########################################################################################
+### Fig. X, Panel X: Boxplot of tumorStage model score values, grouped by cancer type ###
+#########################################################################################
 
 # specify parameters
 classVar <- 'tumorStage'
 groupby <- 'Cancer'  # 'Cancer' or 'Model'
 highlight_cancers <- c('THCA', 'TGCT', 'KIRP', 'KIRC', 'ACC')   # NULL to not highlight any cancers
+score_name <- 'ROC AUC'  # name of model scoring metric for use in labeling plot
+
+# remove problematic chacters from score_name
+score_var <- gsub(' |[.]', '', score_name)
 
 # prepare data
 scores <- allscores[[classVar]]
-dat <- as.data.frame(scores$roc_auc)
+dat <- as.data.frame(scores$model_score)
 
 # merge (average) cancer types
 cancers <- unlist(lapply(colnames(dat), function(x) head(unlist(strsplit(x, '_')), 1)))
@@ -494,16 +522,16 @@ for (cancer in uniq_cancers) {
 }
 dat <- dat[, uniq_cancers]
 
-# order data by decreasing cancer ROC AUC
+# order data by decreasing cancer model score
 o_cancer <- colnames(dat)[order(apply(dat, 2, median), decreasing=T)]
 dat <- dat[, o_cancer] %>% rownames_to_column('Model')
-dat <- pivot_longer(dat, cols=colnames(dat)[-1], values_to='ROC AUC', names_to='Cancer')
+dat <- pivot_longer(dat, cols=colnames(dat)[-1], values_to=score_var, names_to='Cancer')
 dat$Cancer <- factor(dat$Cancer, levels=o_cancer, ordered=T)
 dat$Highlight <- factor(dat$Cancer %in% highlight_cancers)
 
 # generate plot
-pdf(file=paste0(fig_dir, '/', classVar, '_ROCAUC_CancerGrouped_boxplot.pdf'), width=3.75, height=4)
-ggplot(dat, aes(x=Cancer, y=`ROC AUC`, fill=Highlight)) +
+pdf(file=paste0(fig_dir, '/', classVar, '_', score_var, '_CancerGrouped_boxplot.pdf'), width=3.75, height=4)
+ggplot(dat, aes_string(x='Cancer', y=score_var, fill='Highlight')) +
   geom_boxplot() +
   theme_minimal() +
   theme(legend.position='none',
@@ -511,26 +539,31 @@ ggplot(dat, aes(x=Cancer, y=`ROC AUC`, fill=Highlight)) +
         axis.text.x=element_text(angle=90, hjust=1, vjust=0.5),
         axis.title=element_text(size=12)) + 
   xlab('Cancer') +
+  ylab(score_name) +
   scale_fill_manual(values=brewer.pal(3, 'Paired'))
 # coord_cartesian(ylim=c(0,1))
 invisible(dev.off())
 
 
-####################################################
-### Fig. X, Panel X: Histogram of ROC AUC values ###
-####################################################
+########################################################
+### Fig. X, Panel X: Histogram of model score values ###
+########################################################
 
 # specify parameters
 classVar <- 'mutTP53'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+score_name <- 'ROC AUC'  # name of model scoring metric for use in labeling plot
+
+# remove problematic chacters from score_name
+score_var <- gsub(' |[.]', '', score_name)
 
 # prepare data
 scores <- allscores[[classVar]]
-dat <- as.data.frame(scores$roc_auc)
-dat <- pivot_longer(dat, cols=colnames(dat), values_to='ROC AUC', names_to='Cancer')
+dat <- as.data.frame(scores$model_score)
+dat <- pivot_longer(dat, cols=colnames(dat), values_to=score_var, names_to='Cancer')
 
 # generate plot
-pdf(file=paste0(fig_dir, '/', classVar, '_ROCAUC_histogram.pdf'), width=1.2, height=3.5)
-ggplot(dat, aes(y=`ROC AUC`)) +
+pdf(file=paste0(fig_dir, '/', classVar, '_', score_var, '_histogram.pdf'), width=1.2, height=3.5)
+ggplot(dat, aes_string(y=score_var)) +
   # geom_histogram(aes(y=..density..), color='black', fill='white', bins=50) +
   geom_density(alpha=0.4, fill='steelblue3') +
   theme_classic() +
@@ -538,23 +571,28 @@ ggplot(dat, aes(y=`ROC AUC`)) +
         axis.title=element_text(size=12),
         axis.ticks.x=element_blank(),
         axis.text.x=element_blank()) +
-  xlab('Density')
+  xlab('Density') +
+  ylab(score_name)
   # coord_cartesian(xlim=c(0,1))
 invisible(dev.off())
 
 
-##############################################################################
-### Fig. X, Panel X: Combined histogram and two boxplots of ROC AUC values ###
-##############################################################################
+##################################################################################
+### Fig. X, Panel X: Combined histogram and two boxplots of model score values ###
+##################################################################################
 
 # specify parameters
 classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+score_name <- 'ROC AUC'  # name of model scoring metric for use in labeling plot
+
+# remove problematic chacters from score_name
+score_var <- gsub(' |[.]', '', score_name)
 
 for (groupby in c('Cancer', 'Model')) {
   
   # prepare boxplot data
   scores <- allscores[[classVar]]
-  dat <- as.data.frame(scores$roc_auc)
+  dat <- as.data.frame(scores$model_score)
   
   if (classVar == 'tumorStage') {
     # merge (average) cancer types
@@ -569,7 +607,7 @@ for (groupby in c('Cancer', 'Model')) {
   o_model <- rownames(dat)[order(apply(dat, 1, median), decreasing=T)]
   o_cancer <- colnames(dat)[order(apply(dat, 2, median), decreasing=T)]
   dat <- dat[o_model, o_cancer] %>% rownames_to_column('Model')
-  dat <- pivot_longer(dat, cols=colnames(dat)[-1], values_to='ROC AUC', names_to='Cancer')
+  dat <- pivot_longer(dat, cols=colnames(dat)[-1], values_to=score_var, names_to='Cancer')
   dat$Model <- factor(dat$Model, levels=o_model, ordered=T)
   dat$Cancer <- factor(dat$Cancer, levels=o_cancer, ordered=T)
   
@@ -583,7 +621,7 @@ for (groupby in c('Cancer', 'Model')) {
     text_angle <- 45
     vjust_val <- 1
   }
-  p <- ggplot(dat, aes_string(x=groupby, y="`ROC AUC`", fill=groupby)) +
+  p <- ggplot(dat, aes_string(x=groupby, y=score_var, fill=groupby)) +
     geom_boxplot() +
     theme_minimal() +
     theme(legend.position='none',
@@ -592,6 +630,7 @@ for (groupby in c('Cancer', 'Model')) {
           axis.title=element_text(size=12),
           axis.title.x=element_blank()) + 
     scale_fill_hue(h=hues, c=75) +
+    ylab(score_name) +
     coord_cartesian(ylim=c(0,1))
   
   assign(paste0('p_box_', groupby), p)
@@ -599,7 +638,7 @@ for (groupby in c('Cancer', 'Model')) {
 
 # prepare histogram data
 scores <- allscores[[classVar]]
-dat <- as.data.frame(scores$roc_auc)
+dat <- as.data.frame(scores$model_score)
 
 if (classVar == 'tumorStage') {
   # merge (average) cancer types
@@ -611,10 +650,10 @@ if (classVar == 'tumorStage') {
   dat <- dat[, uniq_cancers]
 }
 
-dat <- pivot_longer(dat, cols=colnames(dat), values_to='ROC AUC', names_to='Cancer')
+dat <- pivot_longer(dat, cols=colnames(dat), values_to=score_var, names_to='Cancer')
 
 # generate plot
-p_hist <- ggplot(dat, aes(y=`ROC AUC`)) +
+p_hist <- ggplot(dat, aes_string(y=score_var)) +
   geom_density(alpha=0.4, fill='steelblue3') +
   theme_classic() +
   theme(axis.text=element_text(color='black', size=12),
@@ -622,10 +661,11 @@ p_hist <- ggplot(dat, aes(y=`ROC AUC`)) +
         axis.ticks.x=element_blank(),
         axis.text.x=element_blank()) +
   xlab('Density') +
+  ylab(score_name) +
   coord_cartesian(ylim=c(0,1))
 
 # generate combined plot
-pdf(file=paste0(fig_dir, '/', classVar, '_ROCAUC_CombinedPlots.pdf'), width=10, height=3.5)
+pdf(file=paste0(fig_dir, '/', classVar, '_', score_var, '_CombinedPlots.pdf'), width=10, height=3.5)
 plot_grid(p_hist, p_box_Cancer, p_box_Model, ncol=3, rel_widths=c(4,18,8), align='h', axis='tb', scale = 0.98)
 # plot_grid(p_hist, p_box_Cancer, ncol=2, rel_widths=c(2,9), align='h', axis='tb', scale = 0.98)
 invisible(dev.off())
@@ -722,7 +762,7 @@ DE_logFC <- DE_logFC %>% rownames_to_column('Gene')
 DE_logFC <- pivot_longer(DE_logFC, cols=colnames(DE_logFC)[2:ncol(DE_logFC)], values_to='logFC', names_to='Cancer')
 DE_logPval <- DE_logPval %>% rownames_to_column('Gene')
 DE_logPval <- pivot_longer(DE_logPval, cols=colnames(DE_logPval)[2:ncol(DE_logPval)], values_to='logPval', names_to='Cancer')
-dat <- merge(DE_logFC, DE_logPval, by=c('Gene', 'Cancer'), )
+dat <- merge(DE_logFC, DE_logPval, by=c('Gene', 'Cancer'))
 
 dat$Gene <- ordered(dat$Gene, levels=gene_order)
 dat$Cancer <- ordered(dat$Cancer, levels=cancer_order)

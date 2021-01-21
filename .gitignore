@@ -17,9 +17,6 @@ Thumbs.db
 # jupyter notebook files
 *.ipynb
 
-# csv files
-*.csv
-
 # pdf files
 *.pdf
 
