@@ -1,5 +1,6 @@
-generate_allcancerdata_csv <- function(gene_list=NULL, sample_vars=NULL, file_name='allcancerdata', merge_coadread=FALSE, main_dir=NULL) {
-  # load all cancer FPKM-UQ data, and save only a subset of the data in a .csv file.
+generate_allcancerdata_csv <- function(gene_list=NULL, sample_vars=NULL, file_name='allcancerdata',
+                                       merge_coadread=FALSE, remove_dups=TRUE, main_dir=NULL) {
+  # load all cancer TPM data, and save only a subset of the data in a .csv and .rds file.
   #
   # gene_list         List of genes (gene symbols or ensembl IDs) to include in the dataset.
   #                   DEFAULT = PSP genes.
@@ -9,10 +10,14 @@ generate_allcancerdata_csv <- function(gene_list=NULL, sample_vars=NULL, file_na
   #
   # file_name         Name of output file to which data table will be saved. If NULL, then the
   #                   data will be returned as a dataframe without exporting to a file.
-  #                   DEFAULT = 'allcancerdata_NEW.csv'
+  #                   DEFAULT = 'allcancerdata' (i.e., 'allcancerdata.csv' and 'allcancerdata.rds')
   #
   # merge_coadread    Merge the TCGA-COAD and TCGA-READ projects into one (TCGA-COADREAD)
   #                   DEFAULT = FALSE
+  #
+  # remove_dups       Remove duplicate samples which have the same patient and tissue type ID;
+  #                   only the first sample will be kept.
+  #                   DEFAULT = TRUE
   #
   # main_dir          Path to the CancerProteinSecretionML directory
   #                   e.g., 'usr/yourname/Documents/CancerProteinSecretionML'
@@ -31,8 +36,7 @@ generate_allcancerdata_csv <- function(gene_list=NULL, sample_vars=NULL, file_na
   }
   
   if (is.null(sample_vars)) {
-    sample_vars <- c('CancerStatus','Project','TumorStage','TumorStageMerged','TumorStageBinary','OverallSurvival',
-                     'Race','Gender','Barcode','Mutations')
+    sample_vars <- c('CancerStatus','Project','TumorStage','TumorStageMerged','Barcode','mutTP53')
   }
   
   # check that the first entry in sample_vars is "CancerStatus." This is required for the analysis scripts to know where the
@@ -113,15 +117,19 @@ generate_allcancerdata_csv <- function(gene_list=NULL, sample_vars=NULL, file_na
       
       sample.data$Barcode <- column.data$barcode
       
-    } else if (s_var == 'Mutations') {  # add mutation data for all genes listed in "common_mut_genes.txt"
+    } else if (s_var == 'Mutations' | startsWith(s_var, 'mut')) {  
       
       # load mutation data (loads dataframe 'all_mut_map')
       all_mut_map <- readRDS(file.path(main_dir, 'data', 'TCGA_data_mutations.rds'))
       
-      # load list of genes that are in the top-5 most mutated for at least one cancer type
-      genes <- read.delim(file.path(main_dir, 'data', 'common_mut_genes.txt'), stringsAsFactors=F, header=F)
-      keepRows <- rownames(all_mut_map) %in% genes$V1
-      all_mut_map <- t(all_mut_map[keepRows, ])
+      if (s_var == 'Mutations') {
+        # load list of genes that are in the top-5 most mutated for at least one cancer type
+        genes <- read.delim(file.path(main_dir, 'data', 'common_mut_genes.txt'), stringsAsFactors=F, header=F)
+        keepRows <- rownames(all_mut_map) %in% genes$V1
+      } else {
+        keepRows <- rownames(all_mut_map) %in% sub('^mut', '', s_var)
+      }
+      all_mut_map <- t(all_mut_map[keepRows, , drop=F])
       
       # trim end of TCGA barcodes associated with mutation data (only keep patient and sample type identification portions)
       rownames(all_mut_map) <- substr(rownames(all_mut_map),1,16)
@@ -180,6 +188,13 @@ generate_allcancerdata_csv <- function(gene_list=NULL, sample_vars=NULL, file_na
   # append sample data to count matrix as last columns
   count_data <- cbind(count_data,sample.data)
   message('Done.')
+  
+  # identify and remove duplicate samples
+  # (first 15 characters of barcode define the patient and sample type)
+  if (remove_dups) {
+    keep <- !duplicated(substr(count_data$Barcode, 1, 15))
+    count_data <- count_data[keep, ]
+  }
   
   # write to csv and/or rds
   if (!is.null(file_name)) {
