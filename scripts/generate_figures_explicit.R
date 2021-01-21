@@ -512,6 +512,7 @@ dat <- as.data.frame(scores$model_score)
 # merge (average) cancer types
 cancers <- unlist(lapply(colnames(dat), function(x) head(unlist(strsplit(x, '_')), 1)))
 uniq_cancers <- unique(cancers[duplicated(cancers)])  # only keep those with >1 stage comparisons
+# uniq_cancers <- unique(cancers)  # keep all cancers
 for (cancer in uniq_cancers) {
   dat[, cancer] <- apply(dat[, cancers %in% cancer, drop=F], 1, mean)
 }
