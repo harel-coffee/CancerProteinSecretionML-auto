@@ -5,14 +5,14 @@
 """
 
 #%%
-import os
+from os import path, listdir, getcwd, mkdir
 import pandas as pd
 
 # must be in the project "scripts" directory to import OF
 import omicsAnalysisFunctions as OF
 
 RS = 20170628
-proj_dir = os.path.dirname(os.getcwd())
+proj_dir = path.dirname(getcwd())
 
 
 #%%
@@ -66,8 +66,8 @@ allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
 #==============================================================================
 
 # create output directory if it does not yet exist
-if not os.path.isdir(proj_dir + '/' + output_dir):
-    os.mkdir(proj_dir + '/' + output_dir)
+if not path.isdir(path.join(proj_dir, output_dir)):
+    mkdir(path.join(proj_dir, output_dir))
 
 # Loop through each cancer type, performing the analysis on each type
 for CancerType in allCancerTypes:
@@ -85,8 +85,8 @@ for CancerType in allCancerTypes:
     if ClassVar == 'Mutations':
         all_mutClassVars = [s for s in colnames if 'mut' == s[0:3]]  # extract mutation variables
         for mutClassVar in all_mutClassVars:                        
-            if (not overwrite_results) and (CancerType) in os.listdir(proj_dir + '/' + output_dir):
-                if any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if mutClassVar + '_GenesRanking' in x]):
+            if (not overwrite_results) and (CancerType) in listdir(proj_dir + '/' + output_dir):
+                if any([True for x in listdir(proj_dir + '/' + output_dir + '/' + CancerType) if mutClassVar + '_GenesRanking' in x]):
                     print('Already analyzed; skipping.')
                     continue
             # filter samples from data
@@ -115,10 +115,10 @@ for CancerType in allCancerTypes:
         for stage_combo in all_tumor_combinations:
             ClassVar = 'TumorStageMerged'
             VarLevelsToKeep = stage_combo
-            if (not overwrite_results) and (CancerType) in os.listdir(proj_dir + '/' + output_dir):
+            if (not overwrite_results) and (CancerType) in listdir(proj_dir + '/' + output_dir):
                 file_name_piece = '_'.join(['TumorStage'] + VarLevelsToKeep)
                 file_name_piece = file_name_piece.replace(' ','')
-                if any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if file_name_piece + '_GenesRanking' in x]):
+                if any([True for x in listdir(proj_dir + '/' + output_dir + '/' + CancerType) if file_name_piece + '_GenesRanking' in x]):
                     print('Already analyzed; skipping.')
                     continue
             
@@ -144,9 +144,9 @@ for CancerType in allCancerTypes:
         ClassVar = 'AllStageCombos'
         
     else: 
-        if (not overwrite_results) and (CancerType) in os.listdir(proj_dir + '/' + output_dir):
-            if any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if ClassVar + '_GenesRanking' in x]) or \
-            (len(VarLevelsToKeep) > 2 and any([True for x in os.listdir(proj_dir + '/' + output_dir + '/' + CancerType) if 'regression' in x])):
+        if (not overwrite_results) and (CancerType) in listdir(proj_dir + '/' + output_dir):
+            if any([True for x in listdir(proj_dir + '/' + output_dir + '/' + CancerType) if ClassVar + '_GenesRanking' in x]) or \
+            (len(VarLevelsToKeep) > 2 and any([True for x in listdir(proj_dir + '/' + output_dir + '/' + CancerType) if 'regression' in x])):
                 print('Already analyzed; skipping.')
                 continue
         
