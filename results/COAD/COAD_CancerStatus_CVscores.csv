@@ -1,9 +1,9 @@
 Model,Scoring,Score,CI-lower,CI-high
 ExtraTreesClassifier,roc_auc,1.0,1.0,1.0
-RandomForestClassifier,roc_auc,0.9997340425531915,0.9981382978723405,1.0013297872340425
-AdaBoostClassifier,roc_auc,1.0,1.0,1.0
-XGBClassifier,roc_auc,0.9989472517730495,0.9947359672553375,1.0031585362907616
-LinearDiscriminantAnalysis,roc_auc,1.0,1.0,1.0
+RandomForestClassifier,roc_auc,1.0,1.0,1.0
+AdaBoostClassifier,roc_auc,0.9989009661835748,0.9945044991365842,1.0032974332305653
+XGBClassifier,roc_auc,1.0,1.0,1.0
+LinearDiscriminantAnalysis,roc_auc,0.9994444444444444,0.9961111111111111,1.0027777777777778
 SVC,roc_auc,1.0,1.0,1.0
 LassoRegression,roc_auc,1.0,1.0,1.0
 RidgeRegression,roc_auc,1.0,1.0,1.0
