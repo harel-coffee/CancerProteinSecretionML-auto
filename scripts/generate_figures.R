@@ -165,9 +165,9 @@ invisible(gc())
 
 
 
-####################################################################
-### Fig. 1, toy heatmap demonstrating consensus scoring approach ###
-####################################################################
+############################################################
+### Toy heatmap demonstrating consensus scoring approach ###
+############################################################
 
 dat <- as.data.frame(matrix(runif(8*8)^2, nrow=8, ncol=8))
 dat$Average <- apply(dat, 1, mean)
@@ -186,12 +186,12 @@ grid.gedit('matrix::GRID.rect', gp=gpar(col=grid_color, lwd=grid_linewidth))
 invisible(dev.off())
 
 
-#####################################################
-### Fig. X, Panel X: Boxplot of top-scoring genes ###
-#####################################################
+####################################
+### Boxplot of top-scoring genes ###
+####################################
 
 # specify parameters
-classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
+classVar <- 'mutTP53'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
 n_genes <- 10  # specify number of genes to include
 sort_by <- 'mean'  # 'mean' or 'top each'
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
@@ -231,9 +231,9 @@ ggplot(dat, aes(x=Score, y=Gene, fill=targets)) +
 invisible(dev.off())
 
 
-#####################################################
-### Fig. X, Panel X: Heatmap of top-scoring genes ###
-#####################################################
+####################################
+### Heatmap of top-scoring genes ###
+####################################
 
 # specify parameters
 classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
@@ -290,9 +290,9 @@ pheatmap(dat,
 invisible(dev.off())
 
 
-###################################################################################
-### Fig. X, Panel X: Heatmap of top-scoring genes, custom row & column ordering ###
-###################################################################################
+##################################################################
+### Heatmap of top-scoring genes, custom row & column ordering ###
+##################################################################
 
 # specify parameters
 classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
@@ -350,9 +350,9 @@ grid.gedit('annotation_legend::GRID.rect', gp=gpar(col=grid_color, lwd=grid_line
 invisible(dev.off())
 
 
-#################################################
-### Fig. X, Panel X: Histogram of gene scores ###
-#################################################
+################################
+### Histogram of gene scores ###
+################################
 
 # specify parameters
 classVar <- 'stageRegress'  # 'mutTP53', 'cancerStatus', 'tumorStage', or 'stageRegress'
@@ -374,9 +374,9 @@ ggplot(dat, aes(x=`Mean score`)) +
 invisible(dev.off())
  
 
-######################################################################
-### Fig. X, Panel X: Combined histogram and boxplot of gene scores ###
-######################################################################
+#####################################################
+### Combined histogram and boxplot of gene scores ###
+#####################################################
 
 # specify parameters
 classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
@@ -445,9 +445,9 @@ plot_grid(p_hist, p_box, ncol=2, rel_widths=c(1,1), align='h', axis='tb', scale 
 invisible(dev.off())
 
 
-######################################################
-### Fig. X, Panel X: Boxplot of model score values ###
-######################################################
+#####################################
+### Boxplot of model score values ###
+#####################################
 
 # specify parameters
 classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
@@ -497,9 +497,9 @@ ggplot(dat, aes_string(x=groupby, y=score_var, fill=groupby)) +
 invisible(dev.off())
 
 
-#########################################################################################
-### Fig. X, Panel X: Boxplot of tumorStage model score values, grouped by cancer type ###
-#########################################################################################
+########################################################################
+### Boxplot of tumorStage model score values, grouped by cancer type ###
+########################################################################
 
 # specify parameters
 classVar <- 'tumorStage'
@@ -577,9 +577,9 @@ ggplot(dat, aes_string(y=score_var)) +
 invisible(dev.off())
 
 
-##################################################################################
-### Fig. X, Panel X: Combined histogram and two boxplots of model score values ###
-##################################################################################
+#################################################################
+### Combined histogram and two boxplots of model score values ###
+#################################################################
 
 # specify parameters
 classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
@@ -672,9 +672,9 @@ invisible(dev.off())
 
 
 
-#######################################################################
-### Fig. X, Panel X: Combined boxplots of top ML and DE gene scores ###
-#######################################################################
+######################################################
+### Combined boxplots of top ML and DE gene scores ###
+######################################################
 
 # specify parameters
 classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
@@ -732,9 +732,9 @@ invisible(dev.off())
 
 
 
-########################################################################
-### Fig. X, Panel X: Bubble plot of gene DE fold-change and p-values ###
-########################################################################
+#######################################################
+### Bubble plot of gene DE fold-change and p-values ###
+#######################################################
 
 # specify parameters
 classVar <- 'cancerStatus'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
