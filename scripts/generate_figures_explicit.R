@@ -21,7 +21,7 @@ fig_dir <- paste0(proj_dir, '/doc/manuscript/REVISION/figures/fig_pieces')
 ##############################
 
 # load PSP expression data
-expdata <- readRDS(paste0(proj_dir, '/data/allcancerdata_psp.rds'))
+expdata <- readRDS(paste0(proj_dir, '/data/allcancerdata.rds'))
 expdata$Project <- sub('TCGA-', '', expdata$Project)  # remove "TCGA-" prefix on cancer type abbrevs
 
 # define scoring function for DE FDR-adjusted p-values
@@ -511,8 +511,8 @@ dat <- as.data.frame(scores$model_score)
 
 # merge (average) cancer types
 cancers <- unlist(lapply(colnames(dat), function(x) head(unlist(strsplit(x, '_')), 1)))
-uniq_cancers <- unique(cancers[duplicated(cancers)])  # only keep those with >1 stage comparisons
-# uniq_cancers <- unique(cancers)  # keep all cancers
+# uniq_cancers <- unique(cancers[duplicated(cancers)])  # only keep those with >1 stage comparisons
+uniq_cancers <- unique(cancers)  # keep all cancers
 for (cancer in uniq_cancers) {
   dat[, cancer] <- apply(dat[, cancers %in% cancer, drop=F], 1, mean)
 }
@@ -551,7 +551,8 @@ group_cancers <- F  # group (average) tumor stages together by cancer type
 n_genes <- 10  # number of genes to include
 sort_by <- 'mean'  # 'mean' or 'top each'
 model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
-cancer_types <- c('ACC','KIRP','KIRC','THCA','TGCT')
+cancer_thresh <- 0.5  # only include cancers with at least one gene score above this threshold. Use NULL to remove the filter.
+cancer_types <- c('PAAD','KIRP','THCA','TGCT','KICH','ACC','COAD','KIRC','STAD','BLCA') #c('ACC','KIRP','KIRC','THCA','TGCT')
 
 # prepare data
 scores <- allscores[[classVar]]
@@ -578,6 +579,12 @@ if (sort_by == 'mean') {
 }
 dat <- dat[top_genes, ]
 
+# filter out cancer types without any high-scoring genes
+if (!is.null(cancer_thresh)) {
+  keep_cols <- apply(dat, 2, max) >= cancer_thresh
+  dat <- dat[, keep_cols]
+}
+
 if (classVar == 'tumorStage' && group_cancers == F) {
   colnames(dat) <- sub('_', ' (', colnames(dat))
   colnames(dat) <- paste0(sub('stage', 'stage ', colnames(dat)), ')')
@@ -593,12 +600,11 @@ pheatmap(dat,
          color=magma(100),
          clustering_distance_rows='euclidean',
          clustering_distance_cols='euclidean',
-         clustering_method='complete',  # ward.D, ward.D2, single, complete, average, mcquitty, median, centroid. Use "complete" for tumor stages, and "ward.D2" otherwise.
+         clustering_method='ward.D2',  # ward.D, ward.D2, single, complete, average, mcquitty, median, centroid. Use "complete" for tumor stages, and "ward.D2" otherwise.
          breaks=seq(0,0.8,len=100),
          angle_col=90,
          border_color='black')
 invisible(dev.off())
-
 
 
 ##############################################################################################
