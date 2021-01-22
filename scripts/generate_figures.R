@@ -545,9 +545,84 @@ ggplot(dat, aes_string(x='Cancer', y=score_var, fill='Highlight')) +
 invisible(dev.off())
 
 
-########################################################
-### Fig. X, Panel X: Histogram of model score values ###
-########################################################
+###########################################################################
+### Heatmap of top-scoring genes for tumorStage, faceted by cancer type ###
+###########################################################################
+
+# specify parameters
+classVar <- 'tumorStage'
+n_genes <- 10  # number of genes to include
+sort_by <- 'mean'  # 'mean' or 'top each'
+model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
+cancer_types <- c('PAAD','KIRP','THCA','TGCT','KICH','ACC','COAD','KIRC','STAD','BLCA') #c('ACC','KIRP','KIRC','THCA','TGCT')
+
+# prepare data
+scores <- allscores[[classVar]]
+dat <- as.data.frame(scores[[model]])
+if (!is.null(cancer_types)) {
+  keep <- unlist(lapply(colnames(dat), function(x) any(startsWith(x, cancer_types))))
+  dat <- dat[, keep]
+}
+
+# get cancer type info
+cancers <- unlist(lapply(colnames(dat), function(x) head(unlist(strsplit(x, '_')), 1)))
+uniq_cancers <- unique(cancers)
+
+# filter genes
+if (sort_by == 'mean') {
+  o <- order(apply(dat, 1, mean), decreasing=T)
+  top_genes <- rownames(dat)[o[1:n_genes]]
+} else if (sort_by == 'top each') {
+  o <- apply(dat, 2, function(x) order(x, decreasing=T))
+  top_genes <- rownames(dat)[unique(as.vector(o[1:n_genes, ]))]
+}
+dat <- dat[top_genes, ]
+
+# rename columns
+colnames(dat) <- sub('_', ' ', colnames(dat))
+colnames(dat) <- paste0(sub('stage', 'Stage ', colnames(dat)))
+colnames(dat) <- sub('v', ' vs. ', colnames(dat))
+plot_height=3.5
+
+# cluster columns within each cancer type (not across all cancer types!)
+for (c in uniq_cancers) {
+  cancer_indx <- grep(c, colnames(dat))
+  if (length(cancer_indx) > 1) {
+    o <- hclust(dist(t(dat[, cancer_indx])), method='complete')$order
+    dat[, cancer_indx] <- dat[, cancer_indx[o]]
+  }
+}
+
+# # generate matrix representing which two stages are compared in each column
+# stage_mat <- as.data.frame(list2DF(lapply(c('1','2','3','4'), function(x) as.numeric(grepl(x, colnames(dat))))))
+# colnames(stage_mat) <- c('Stage I', 'Stage II', 'Stage III', 'Stage IV')
+# rownames(stage_mat) <- colnames(dat)
+# 
+# stage_colors <- list(`Stage I`=c('white', 'gray25'),
+#                      `Stage II`=c('white', 'gray25'),
+#                      `Stage III`=c('white', 'gray25'),
+#                      `Stage IV`=c('white', 'gray25'))
+
+# generate heatmap
+pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_heatmap.pdf'), width=3+2.3*ncol(dat)/22, height=plot_height, onefile=F)
+pheatmap(dat,
+         scale='none',
+         color=magma(100),
+         clustering_distance_rows='euclidean',
+         cluster_cols=F,
+         clustering_method='ward.D2',  # ward.D, ward.D2, single, complete, average, mcquitty, median, centroid. Use "complete" for tumor stages, and "ward.D2" otherwise.
+         breaks=seq(0,0.8,len=100),
+         gaps_col=cumsum(table(cancers)),
+         # annotation_col=stage_mat,
+         # annotation_colors=stage_colors,
+         angle_col=90,
+         border_color='black')
+invisible(dev.off())
+
+
+#######################################
+### Histogram of model score values ###
+#######################################
 
 # specify parameters
 classVar <- 'mutTP53'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
