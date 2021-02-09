@@ -11,9 +11,10 @@ library(grid)
 library(cowplot)
 
 
-# specify main project directory
+# specify directory information
 proj_dir <- '/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML'
 fig_dir <- paste0(proj_dir, '/doc/manuscript/REVISION/figures/fig_pieces')
+results_folder <- 'results_3genes'
 
 
 ##############################
@@ -33,7 +34,7 @@ score_pvals <- function(x) {
 # load gene annotations and ML gene scores 
 gene_data <- read.delim(paste0(proj_dir, '/data/PSPgenes.txt'), row.names=1)
 genes <- rownames(gene_data)
-cancers <- dir(paste0(proj_dir, '/results'))
+cancers <- dir(file.path(proj_dir, results_folder))
 stages <- c('stagei_stageii', 'stagei_stageiii', 'stagei_stageiv', 'stageii_stageiii', 'stageii_stageiv', 'stageiii_stageiv')
 stageNames <- c('stage1v2', 'stage1v3', 'stage1v4', 'stage2v3', 'stage2v4', 'stage3v4')
 cancer_stages <- unlist(lapply(cancers, function(x) paste(x, stageNames, sep='_')))
@@ -67,7 +68,7 @@ scores_tumorStage$model_score   <- matrix(NA, nrow=length(model_names)-1, ncol=l
 scores_stageRegress$model_score <- matrix(NA, nrow=length(reg_model_names)-1, ncol=length(cancers), dimnames=list(reg_model_names[1:(length(reg_model_names)-1)], cancers))
 
 for (cancer in cancers) {
-  cancer_path <- paste0(proj_dir, '/results/', cancer)
+  cancer_path <- file.path(proj_dir, results_folder, cancer)
   files_cancerStatus <- dir(cancer_path, 'CancerStatus')
   files_mutTP53 <- dir(cancer_path, 'mutTP53')
   files_stageRegress <- dir(cancer_path, 'TumorStage_regression')
@@ -78,10 +79,12 @@ for (cancer in cancers) {
     for (model in model_names) {
       scores_cancerStatus[[model]][, cancer] <- scores[match(genes, rownames(scores)), model]
     }
-    de_res <- read.delim(paste0(cancer_path, '/', files_cancerStatus[grepl('DEresults', files_cancerStatus)]), row.names=1)
-    scores_cancerStatus$DE_log2FC[, cancer] <- de_res$logFC[match(genes, rownames(de_res))]
-    scores_cancerStatus$DE_FDR[, cancer] <- de_res$FDR[match(genes, rownames(de_res))]
-    scores_cancerStatus$DE_FDRscore[, cancer] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
+    suppressWarnings(try({
+      de_res <- read.delim(paste0(cancer_path, '/', files_cancerStatus[grepl('DEresults', files_cancerStatus)]), row.names=1)
+      scores_cancerStatus$DE_log2FC[, cancer] <- de_res$logFC[match(genes, rownames(de_res))]
+      scores_cancerStatus$DE_FDR[, cancer] <- de_res$FDR[match(genes, rownames(de_res))]
+      scores_cancerStatus$DE_FDRscore[, cancer] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
+    }, silent=T))
     
     model_score <- read.csv(paste0(cancer_path, '/', files_cancerStatus[grepl('CVscores', files_cancerStatus)]), row.names=1)
     scores_cancerStatus$model_score[, cancer] <- model_score$Score[match(model_names[1:(length(model_names)-1)], rownames(model_score))]
@@ -92,10 +95,12 @@ for (cancer in cancers) {
     for (model in model_names) {
       scores_mutTP53[[model]][, cancer] <- scores[match(genes, rownames(scores)), model]
     }
-    de_res <- read.delim(paste0(cancer_path, '/', files_mutTP53[grepl('DEresults', files_mutTP53)]), row.names=1)
-    scores_mutTP53$DE_log2FC[, cancer] <- de_res$logFC[match(genes, rownames(de_res))]
-    scores_mutTP53$DE_FDR[, cancer] <- de_res$FDR[match(genes, rownames(de_res))]
-    scores_mutTP53$DE_FDRscore[, cancer] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
+    suppressWarnings(try({
+      de_res <- read.delim(paste0(cancer_path, '/', files_mutTP53[grepl('DEresults', files_mutTP53)]), row.names=1)
+      scores_mutTP53$DE_log2FC[, cancer] <- de_res$logFC[match(genes, rownames(de_res))]
+      scores_mutTP53$DE_FDR[, cancer] <- de_res$FDR[match(genes, rownames(de_res))]
+      scores_mutTP53$DE_FDRscore[, cancer] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
+    }, silent=T))
     
     model_score <- read.csv(paste0(cancer_path, '/', files_mutTP53[grepl('CVscores', files_mutTP53)]), row.names=1)
     scores_mutTP53$model_score[, cancer] <- model_score$Score[match(model_names[1:(length(model_names)-1)], rownames(model_score))]
@@ -113,10 +118,12 @@ for (cancer in cancers) {
       for (model in model_names) {
         scores_tumorStage[[model]][, f_name] <- scores[match(genes, rownames(scores)), model]
       }
-      de_res <- read.delim(paste0(cancer_path, '/', sub('GenesRanking.csv', 'DEresults.txt', f)), row.names=1)
-      scores_tumorStage$DE_log2FC[, f_name] <- de_res$logFC[match(genes, rownames(de_res))]
-      scores_tumorStage$DE_FDR[, f_name] <- de_res$FDR[match(genes, rownames(de_res))]
-      scores_tumorStage$DE_FDRscore[, f_name] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
+      suppressWarnings(try({
+        de_res <- read.delim(paste0(cancer_path, '/', sub('GenesRanking.csv', 'DEresults.txt', f)), row.names=1)
+        scores_tumorStage$DE_log2FC[, f_name] <- de_res$logFC[match(genes, rownames(de_res))]
+        scores_tumorStage$DE_FDR[, f_name] <- de_res$FDR[match(genes, rownames(de_res))]
+        scores_tumorStage$DE_FDRscore[, f_name] <- score_pvals(de_res$FDR[match(genes, rownames(de_res))])
+      }, silent=T))
       
       model_score <- read.csv(paste0(cancer_path, '/', sub('GenesRanking', 'CVscores', f)), row.names=1)
       scores_tumorStage$model_score[, f_name] <- model_score$Score[match(model_names[1:(length(model_names)-1)], rownames(model_score))]
@@ -152,7 +159,7 @@ for (item in names(scores_stageRegress)) {
   scores_stageRegress[[item]] <- scores_stageRegress[[item]][, keep_cancers] %>% replace_na(0)
 }
 
-# rename models in model_score slot
+# rename models in model_score slots
 rownames(scores_cancerStatus$model_score) <- new_model_names[match(rownames(scores_cancerStatus$model_score), model_names)]
 rownames(scores_mutTP53$model_score) <- new_model_names[match(rownames(scores_mutTP53$model_score), model_names)]
 rownames(scores_tumorStage$model_score) <- new_model_names[match(rownames(scores_tumorStage$model_score), model_names)]
@@ -473,7 +480,7 @@ annColors$Function <- annColors$Function[intersect(names(annColors$Function), un
 annData <- gene_data[, c('module'), drop=F] %>% setNames('Function')
 
 # generate heatmap
-pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_topEach_heatmap.pdf'), width=3+2.3*ncol(dat)/22, height=4, onefile=F)
+pdf(file=file.path(fig_dir, paste0(classVar, '_', model, '_topEach_heatmap.pdf')), width=3+2.3*ncol(dat)/22, height=4, onefile=F)
 pheatmap(dat,
          scale='none',
          color=magma(100),
@@ -982,6 +989,7 @@ grid.gedit('matrix::GRID.rect', gp=gpar(col=grid_color, lwd=grid_linewidth))
 grid.gedit('row_annotation', gp=gpar(col=grid_color, lwd=grid_linewidth))
 grid.gedit('annotation_legend::GRID.rect', gp=gpar(col=grid_color, lwd=grid_linewidth))
 invisible(dev.off())
+
 
 
 
