@@ -443,9 +443,9 @@ ggplot(dat, aes(x=Cancer, y=Gene, size=logPval, fill=logFC)) +
 invisible(dev.off())
 
 
-##############################################################################################
-### Fig. 4: Heatmap of top-5 genes for each cancer type, CancerStatus, subset of 5 cancers ###
-##############################################################################################
+#######################################################################################################
+### Fig. 4, Panel A: Heatmap of top-5 genes for each cancer type, CancerStatus, subset of 5 cancers ###
+#######################################################################################################
 
 # specify parameters
 classVar <- 'cancerStatus'
@@ -496,6 +496,151 @@ grid.ls(grid.force())
 grid.gedit('matrix::GRID.rect', gp=gpar(col=grid_color, lwd=grid_linewidth))
 grid.gedit('row_annotation', gp=gpar(col=grid_color, lwd=grid_linewidth))
 grid.gedit('annotation_legend::GRID.rect', gp=gpar(col=grid_color, lwd=grid_linewidth))
+invisible(dev.off())
+
+
+##############################################################################
+### Fig. 4, Panel B: Correlation of secretome expression changes with PTMs ###
+##############################################################################
+
+# specify parameters
+ptm_type <- 'gly'  # options are 'N.gly', 'O.gly', 'gly', and 'ds'
+cancers <- c('STAD', 'COAD', 'READ', 'KICH', 'THCA')
+
+# load post-translational modification (PTM) data
+ptm <- read.delim(file.path(proj_dir, 'data', 'uniprot', 'uniprot_reviewed_info.txt'))
+ptm <- ptm[!duplicated(ptm$ensembl_gene_id), ] %>%
+  remove_rownames() %>%
+  column_to_rownames('ensembl_gene_id')
+ptm$gly <- ptm$N.gly + ptm$O.gly
+
+# load secretome expression change data
+if (is.null(cancers)) {
+  cancers <- colnames(allscores$cancerStatus$model_score)  # all cancers for cancerStatus analysis
+}
+sec_file <- file.path(proj_dir, 'data', 'secretome', 'Robinson2019CellSystems_TableS2.xlsx')
+sec_dat <- list()
+for (cancer in cancers) {
+  suppressWarnings(
+    sec_dat[[cancer]] <- read_xlsx(sec_file, sheet=cancer) %>%
+      column_to_rownames('ensembl'))
+}
+fc1 <- list2DF(lapply(sec_dat, function(x) x$FC_1))
+rownames(fc1) <- rownames(sec_dat[[1]])
+fc2 <- list2DF(lapply(sec_dat, function(x) x$FC_2))
+rownames(fc2) <- rownames(sec_dat[[1]])
+
+# align rows (genes) of secretome data and PTM data
+shared_genes <- intersect(rownames(ptm), rownames(fc1))
+ptm <- ptm[match(shared_genes, rownames(ptm)), ]
+fc1 <- fc1[match(shared_genes, rownames(fc1)), ]
+fc2 <- fc2[match(shared_genes, rownames(fc2)), ]
+
+# calculate correlation between fold-changes and a PTM
+suppressWarnings(
+  cor_res <- data.frame(
+    coeffs = unlist(lapply(cancers, function(x) cor.test(fc1[fc1[, x] != 0, x], ptm[fc1[, x] != 0, ptm_type], method='spearman')$estimate)) %>% setNames(cancers),
+    pvals = unlist(lapply(cancers, function(x) cor.test(fc1[fc1[, x] != 0, x], ptm[fc1[, x] != 0, ptm_type], method='spearman')$p.value)) %>% setNames(cancers)
+  )
+)
+
+# classify each cancer type based on correlation direction and significance
+cor_res$label <- 'Negative (non-significant)'
+cor_res$label[cor_res$pvals < 0.05 & cor_res$coeffs < 0] <- 'Negative (significant)'
+cor_res$label[cor_res$pvals < 0.05 & cor_res$coeffs > 0] <- 'Positive (significant)'
+cor_res$label[cor_res$pvals >= 0.05 & cor_res$coeffs > 0] <- 'Positive (non-significant)'
+cor_res$label <- factor(cor_res$label, levels=c('Positive (significant)', 'Positive (non-significant)',
+                                                'Negative (non-significant)', 'Negative (significant)'))
+
+# reformat dataframe to prepare for plotting
+cor_res <- rownames_to_column(cor_res, 'Cancer')
+cor_res$Cancer <- factor(cor_res$Cancer, levels=cancers)
+pal <- brewer.pal(n=4, name='RdBu')
+
+# generate plot
+pdf(file=file.path(fig_dir, paste0('cancerStatus_PTMcorrelation_barplot.pdf')), width=4, height=2.3)
+ggplot(cor_res, aes(x=reorder(Cancer, coeffs), y=coeffs, fill=label)) +
+  geom_bar(stat='identity', color='black', width=0.75) +
+  scale_fill_manual(name='Correlation', values=pal, drop=F) +
+  theme_minimal() +
+  theme(axis.text=element_text(color='black', size=9),
+        axis.text.x=element_text(angle=90, hjust=1),
+        legend.text=element_text(color='black', size=9)) +
+  ylab("Spearman's Rho") +
+  xlab('Cancer')
+invisible(dev.off())
+
+
+################################################################################
+### Fig. 4, Panel C: Bar plot of enrichment of PTMs among DE secretome genes ###
+################################################################################
+
+# specify parameters
+ptm_type <- c('gly')  # options are 'N.gly', 'O.gly', 'gly', and 'ds' (can use combinations)
+ptm_thresh <- 5  # mininum number of PTM sites on a protein necessary to be classified in that PTM group
+cancers <- c('KICH', 'STAD', 'THCA', 'COAD', 'READ')  # use NULL to include all cancer types
+
+# load post-translational modification (PTM) data
+ptm <- read.delim(file.path(proj_dir, 'data', 'uniprot', 'uniprot_reviewed_info.txt'))
+ptm <- ptm[!duplicated(ptm$ensembl_gene_id), ] %>%
+  remove_rownames() %>%
+  column_to_rownames('ensembl_gene_id')
+ptm$gly <- ptm$N.gly + ptm$O.gly
+
+# load secretome expression change data
+if (is.null(cancers)) {
+  cancers <- colnames(allscores$cancerStatus$model_score)  # all cancers for cancerStatus analysis
+}
+sec_file <- file.path(proj_dir, 'data', 'secretome', 'Robinson2019CellSystems_TableS2.xlsx')
+sec_dat <- list()
+for (cancer in cancers) {
+  suppressWarnings(
+    sec_dat[[cancer]] <- read_xlsx(sec_file, sheet=cancer) %>%
+      column_to_rownames('ensembl'))
+}
+fc1 <- list2DF(lapply(sec_dat, function(x) x$FC_1))
+rownames(fc1) <- rownames(sec_dat[[1]])
+p1 <- list2DF(lapply(sec_dat, function(x) x$p_adj_1))
+rownames(p1) <- rownames(sec_dat[[1]])
+
+# prepare gene lists
+all_genes <- intersect(rownames(ptm), rownames(p1))
+
+# calculate enrichment for each PTM and cancer type
+p_enrich <- data.frame(PTM=ptm_type)
+for (ptm_num in 1:length(ptm_type)) {
+  ptm_genes <- intersect(all_genes, rownames(ptm)[ptm[, ptm_type[ptm_num]] >= ptm_thresh])
+  
+  for (cancer in cancers) {
+    sig_genes <- rownames(p1)[p1[, cancer] < 0.05]
+    
+    q <- length(intersect(sig_genes, ptm_genes))
+    m <- length(ptm_genes)
+    n <- length(all_genes) - m
+    k <- length(sig_genes)
+    
+    p_enrich[ptm_num, cancer] <- phyper(q, m, n, k, lower.tail=F)
+  }
+}
+
+# reformat dataframe to prepare for plotting
+p_enrich <- pivot_longer(p_enrich, cols=all_of(cancers), names_to='Cancer', values_to='pval')
+p_enrich$label <- 'Non-significant'
+p_enrich$label[p_enrich$pval < 0.05] <- 'Enriched (p < 0.05)'
+p_enrich$Cancer <- factor(p_enrich$Cancer, levels=cancers)
+
+pal <- brewer.pal(10, 'Paired')[c(10,9)]
+
+# generate barplot showing enrichment significance for each cancer and PTM type
+pdf(file=file.path(fig_dir, paste0('cancerStatus_PTMenrich_barplot.pdf')), width=3.6, height=2.3)
+ggplot(p_enrich, aes(x=Cancer, y=-log10(pval), fill=label)) +
+  geom_col(width=0.75, color='black') +
+  scale_fill_manual(name='Enrichment', values=pal, drop=F) +
+  theme_minimal() +
+  theme(axis.text=element_text(color='black', size=9),
+        axis.text.x=element_text(angle=90, hjust=1),
+        legend.text=element_text(color='black', size=9)) +
+  ylab(expression(paste('Enrichment, ', -log[10], '(P)')))
 invisible(dev.off())
 
 
@@ -835,6 +980,40 @@ pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_combined_HistBox.pdf'), wi
 plot_grid(p_hist, p_box, ncol=2, rel_widths=c(1,1), align='h', axis='tb', scale = 0.98)
 invisible(dev.off())
 
+
+###########################################################################################
+### Fig. SX, Panel X: Heatmap of top-scoring genes for tumorStage (showing all cancers) ###
+###########################################################################################
+
+# specify parameters
+classVar <- 'tumorStage'
+n_genes <- 10  # number of genes to include
+sort_by <- 'mean'  # 'mean' or 'top each'
+model <- 'Average'  # e.g., 'Average' or 'DE_FDRscore'
+
+# prepare data
+scores <- allscores[[classVar]]
+dat <- as.data.frame(scores[[model]])
+o <- order(apply(dat, 1, mean), decreasing=T)
+top_genes <- rownames(dat)[o[1:n_genes]]
+dat <- dat[top_genes, ]
+
+# rename columns
+colnames(dat) <- sub('_', ' (', colnames(dat))
+colnames(dat) <- paste0(sub('stage', 'stage ', colnames(dat)), ')')
+
+# generate heatmap
+pdf(file=paste0(fig_dir, '/', classVar, '_', model, '_AllCancers_heatmap.pdf'), width=14, height=3.5, onefile=F)
+pheatmap(dat,
+         scale='none',
+         color=magma(100),
+         clustering_distance_rows='euclidean',
+         clustering_distance_cols='euclidean',
+         clustering_method='complete',
+         breaks=seq(0,0.8,len=100),
+         angle_col=90,
+         border_color='black')
+invisible(dev.off())
 
 
 #######################################################################
