@@ -1127,7 +1127,14 @@ def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, med_tpm_threshold):
     Remove genes from dataset according to specified parameters.
     """
     
-    if med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
+    if type(med_tpm_threshold) is list:        
+        removeGenes = [x for x in list(dfAnalysis_fl) if x not in med_tpm_threshold + [ClassVar]]
+        dfAnalysis_fl_cd = dfAnalysis_fl.drop(removeGenes, 1)
+        print('\n*********************************************')
+        print('All genes were removed except the following:')
+        print(med_tpm_threshold)
+        
+    elif med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
         # Look at the list low_tpm_genes, these are the genes which will be removed.
         data_stats, low_tpm_genes = GeneExpression(dfAnalysis_fl,med_tpm_threshold)
         print('\n*********************************************')
