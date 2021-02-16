@@ -38,8 +38,10 @@ logTransOffset = 1  # transformed TPM = log(TPM + offset)
 #  'zero' - remove genes with all zeros.
 #  'X%' - where X is a number from 0 to 100, removes genes with median TPM
 #         in the bottom X-percentile.
-#   X - where X is a number, removes genes with median TPM below X
+#   X - where X is a number, removes genes with median TPM below X.
+#  ['Gene1', ...] - a list of genes that should be used, removing all others.
 med_tpm_threshold = 0.1
+# med_tpm_threshold = ['BAX', 'KIF23', 'HSPA4L']
 
 # Specify the scoring metric that the model will try to maximize
 #   Examples for binary classification: 'accuracy', 'average_precision', 'f1', 'roc_auc'
