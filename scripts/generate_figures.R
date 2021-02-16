@@ -15,7 +15,7 @@ library(readxl)
 # specify directory information
 proj_dir <- '/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML'
 fig_dir <- paste0(proj_dir, '/doc/manuscript/REVISION/figures/fig_pieces')
-results_folder <- 'results_3genes'
+results_folder <- 'results'
 
 
 ##############################
@@ -462,7 +462,7 @@ invisible(dev.off())
 #####################################
 
 # specify parameters
-classVar <- 'tumorStage'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
+classVar <- 'mutTP53'  # 'mutTP53', 'cancerStatus', or 'tumorStage'
 groupby <- 'Cancer'  # 'Cancer' or 'Model'
 score_name <- 'ROC AUC'  # name of model scoring metric for use in labeling plot
 
