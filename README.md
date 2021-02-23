@@ -7,7 +7,7 @@ Analysis of gene expression changes in the protein secretory pathway of differen
 The python and R code necessary to reproduce the analyses in the manuscript can be found in the [scripts](scripts) directory of this repository. View the README therein for further details on the associated scripts.
 
 ### Environments
-There are two conda environment files that define the packages necessary for running the python and R scripts: `environment_python.yml` and `environment_python.R`, respectively. Create the environments from the files using the following command:
+There are two conda environment files that define the packages necessary for running the python and R scripts: `environment_python.yml` and `environment_R.yml`, respectively. Create the environments from the files using the following command:
 ```
 conda env create -f environment_python.yml
 conda env create -f environment_R.yml

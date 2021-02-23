@@ -642,7 +642,7 @@ def prepCancerTypeDict(hdfStore=False, inFile='allcancerdata', outFile='CancerDa
     """ 
     
     # Import data from csv to a data frame
-    df = ReadOMICSdataCSV('data/' + inFile)
+    df = ReadOMICSdataCSV('../data/' + inFile)
     df = df.dropna(subset = ['Project'])
     projects = df['Project'].unique()
     arr = []
@@ -659,7 +659,7 @@ def prepCancerTypeDict(hdfStore=False, inFile='allcancerdata', outFile='CancerDa
     
     # For hdfStore=True, we write the dictionay to a hdfStore.
     if hdfStore:
-        CancerDataStore = pd.HDFStore('data/' + outFile + '.h5')
+        CancerDataStore = pd.HDFStore('../data/' + outFile + '.h5')
         for (key, value) in cancerTypesDic.items():
             # keys are names of cancers, e.g., TCGA-BRCA. Using split to ignore the TCGA- part and use
             # the rest as the name. With prefix TCGA-, it is not a valid Python identifier.
@@ -1127,7 +1127,14 @@ def filterGenesFromData(dfAnalysis_fl, CancerType, ClassVar, med_tpm_threshold):
     Remove genes from dataset according to specified parameters.
     """
     
-    if med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
+    if type(med_tpm_threshold) is list:        
+        removeGenes = [x for x in list(dfAnalysis_fl) if x not in med_tpm_threshold + [ClassVar]]
+        dfAnalysis_fl_cd = dfAnalysis_fl.drop(removeGenes, 1)
+        print('\n*********************************************')
+        print('All genes were removed except the following:')
+        print(med_tpm_threshold)
+        
+    elif med_tpm_threshold != 'none': # remove low-TPM genes if specified, and dim reduction is not requested
         # Look at the list low_tpm_genes, these are the genes which will be removed.
         data_stats, low_tpm_genes = GeneExpression(dfAnalysis_fl,med_tpm_threshold)
         print('\n*********************************************')
@@ -1331,7 +1338,7 @@ def writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKee
     print('Writing dataset, genes ranking and CV analysis results to a ' \
           'directory named "{0}"'.format(CancerType))
     
-    os.makedirs(parent_dir_name + CancerType , exist_ok=True)
+    os.makedirs(os.path.join(parent_dir_name, CancerType) , exist_ok=True)
 
     if len(VarLevelsToKeep) > 2 and ClassVar == 'TumorStageMerged':
         file_name_piece = 'TumorStage_regression'
@@ -1341,10 +1348,10 @@ def writeResultsToFile(dfRanks, dfCVscores, CancerType, ClassVar, VarLevelsToKee
     else:
         file_name_piece = ClassVar
 
-    dfRanks.to_csv(parent_dir_name + CancerType + '/' + CancerType + '_' \
-                   + file_name_piece + '_GenesRanking.csv', index=False)    
-    dfCVscores.to_csv(parent_dir_name + CancerType + '/' + CancerType \
-                      + '_' + file_name_piece + '_CVscores.csv', index=False)
+    dfRanks.to_csv(os.path.join(parent_dir_name, CancerType, CancerType \
+                   + '_' + file_name_piece + '_GenesRanking.csv'), index=False)
+    dfCVscores.to_csv(os.path.join(parent_dir_name, CancerType, CancerType \
+                   + '_' + file_name_piece + '_CVscores.csv'), index=False)
     
     print('\nDone!\n')
 

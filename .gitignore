@@ -35,6 +35,9 @@ CancerDataStore*
 # manuscript files
 /doc/manuscript
 
+# deprecated files
+.deprecated
+
 # R data file
 *.rds
 
