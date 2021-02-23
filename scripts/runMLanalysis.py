@@ -20,8 +20,7 @@ proj_dir = path.dirname(getcwd())
 # Analysis Parameters
 #==============================================================================
 
-# ClassVar options: 'mutTP53', 'CancerStatus', 'TumorStageMerged',
-#                   'Race', 'Gender', 'Mutations', 'AllStageCombos'
+# ClassVar options: 'mutTP53', 'CancerStatus', 'TumorStageMerged', 'AllStageCombos'
 ClassVar = 'CancerStatus'
 
 # Select which levels of the class variable to keep. Not needed for classVar='AllStageCombos'

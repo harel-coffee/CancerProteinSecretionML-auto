@@ -5,14 +5,14 @@ This directory contains the scripts to perform the analyses described in the man
 
 ## Re-run the ML analysis
 
-The `runMLanalysis.py` script is used to re-run the machine learning analysis and generate gene scores and ROC AUC values. The [python conda environment file](../environment_python.yml) necessary to run this script can be found in the top-level directory of this repository. Ensure that the environment is activated prior to running any of the scripts (`conda activate psp-cancer-py`).
+The `runMLanalysis.py` script is used to run the machine learning analysis and generate gene scores and model scoring metric values (e.g., ROC AUC). The [python conda environment file](../environment_python.yml) necessary to run this script can be found in the top-level directory of this repository. Ensure that the environment is activated prior to running any of the scripts (`conda activate psp-cancer-py`).
 
-*NOTE!* The script will check if results already exist in the `results/` directory of the repository, and will skip the analysis if the same result file exists. Therefore, to regenerate the results, first delete the existing output present in the `results/` directory.
+*NOTE!* The script will check if results already exist in the `results/` directory of the repository, and will skip the analysis if the same result file exists. Therefore, to regenerate the results, either delete the existing output present in the `results/` directory, or set the `overwrite_results` parameter within the `runMLanalysis.py` script to `True`.
 
 
 ### Specify run parameters
 
-First specify the run parameters by editing the `runMLanalysis.py` script. In the top portion of the script, specify the following parameters:
+First specify the run parameters by editing the `runMLanalysis.py` script. In the top portion of the script, the following run parameters can be specified:
 
 
 #### Class variable: `ClassVar` 
@@ -27,9 +27,10 @@ Defines the variable by which samples will be grouped. Some example options for 
 #### Class variable levels: `VarLevelsToKeep`
 
 Defines the two values of the class variable to be compared.
-- `['FALSE', 'TRUE']` when `ClassVar` is `'mutTP53'`  or `'Mutations'`
+- `['FALSE', 'TRUE']` when `ClassVar` is `'mutTP53'`
 - `['Solid Tissue Normal', 'Primary solid Tumor']` when `ClassVar` is `'CancerStatus'`
 - `['stage i','stage ii']` (or any pair of stages) when `ClassVar` is `'TumorStageMerged'`
+- `['stage i', 'stage ii', 'stage iii', 'stage iv']` when `ClassVar` is `'TumorStageMerged'` to perform a regression analysis (instead of binary classification)
 
 Note that when `ClassVar` is set to `AllStageCombos`, all possible tumor stage pairs will be analyzed automatically so the `VarLevelsToKeep` variable does not need to be assigned.
 
@@ -46,6 +47,33 @@ There are a few options for handling low-count genes:
 - `'zero'` = remove genes with all zeros.
 - `'X%'` = where `X` is a number from 0 to 100, removes genes with median TPM in the bottom X-percentile.
 - `X` = where `X` is a number, removes genes with median TPM below `X`
+
+
+#### ML model scoring metric: `score_metric`
+Specify the scoring metric that the model will try to maximize. See the full list of available metrics on the [scikit-learn metrics and scoring page](https://scikit-learn.org/stable/modules/model_evaluation.html).
+- Examples for binary classification: `'accuracy'`, `'average_precision'`, `'f1'`, `'roc_auc'`
+- Examples for regression: `'explained_variance'`, `'neg_mean_squared_error'`, `'r2'`
+
+
+### Specify paths and other run settings
+
+Some additional settings can optionally be changed in the next section of the `runMLanalysis.py` script:
+
+#### HDF5 data file
+
+Name of the `.h5` file containing the transcript abundance (gene TPM values) for the PSP genes across the different samples, as well as some additional sample metadata.
+
+#### Output directory
+
+Specify the name of the directory to which the results of the ML analysis will be written. This should not be the full directory path, just the name of the folder which exists within the top-level repository directory. The folder will be created if it does not yet exist.
+
+#### Overwrite option
+
+Specify whether the results should be overwritten. If `False`, the script will skip analyses for which results files already exist.
+
+#### List of available cancer types
+
+The TCGA cancer type abbreviations through which to iterate. Cancer types that do not have the necessary sample types or numbers to perform an analysis will automatically be skipped, so no pre-filtering needs to be done here.
 
 
 ### Run the analysis
