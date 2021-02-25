@@ -85,8 +85,77 @@ python runMLanalysis.py
 
 ## Re-run the differential expression analyses
 
+Differential expression (DE) analyses were run in R using the `CancerDiffExpAnalysis.R` script. 
+
+Activate the conda R environment
+```
+conda activate psp-cancer-r
+```
+
+Launch RStudio from the command line to ensure that the R packages from the conda environment are available for use
+```
+r studio &
+```
+
+From within RStudio, source the `CancerDiffExpAnalysis.R` function by either checking `Source on Save` and saving the function, or by directly entering the command
+```
+# Replace with the actual path to the function!
+source('~/CancerProteinSecretionML/scripts/CancerDiffExpAnalysis.R')
+```
+
+Run the function for the comparison(s) of interest; for example:
+```
+CancerDiffExpAnalysis(cancerType='ACC', classVar='mutTP53', classVarLevels=c('FALSE', 'TRUE'), main_dir='~/CancerProteinSecretionML')
+```
+
+See the function header for details on input parameters. It is also shown below for convenience.
+```
+# cancerType      Character of one cancer type, or list of multiple cancer types to analyze.
+#                 Specifying 'all' will analyze all available cancer types in the data.
+#                 If NULL, the function will return a list of all available cancer types.
+#
+# classVar        Class variable by which to separate the samples. For example:
+#                 'CancerStatus', 'TumorStage', 'TumorStageMerged', or 'mutTP53'
+#                 If NULL, the function will return a list of all available class variables.
+#
+# classVarLevels  The TWO values of the class variable by which the samples will be grouped.
+#                 Note that the fold-changes will be calculated as L2/L1.
+#                 For example, if classVar is 'CancerStatus', classVarLevels would likely be
+#                 c('Solid Tissue Normal', 'Primary solid Tumor').
+#                 If NULL, the function will return a list of all available levels for the 
+#                 chosen class variable.
+#
+# gene            Leave empty (NULL) to perform a differential expression analysis.
+#                 If a gene name is specified, then the expression of that gene in the
+#                 two groups will be visualized with a plot.
+#
+# main_dir        Path to the CancerProteinSecretionML directory.
+#                 e.g., 'usr/yourname/Documents/CancerProteinSecretionML'
+```
 
 ## Re-generate the manuscript figures
+
+The figures were generated in R using the `generate_figures.R` script. 
+
+Activate the conda R environment
+```
+conda activate psp-cancer-r
+```
+
+Launch RStudio from the command line to ensure that the R packages from the conda environment are available for use
+```
+r studio &
+```
+
+Edit the top of the script to specify relevant paths on your local machine
+```
+# specify directory information
+proj_dir <- '~/CancerProteinSecretionML'
+fig_dir <- file.path(proj_dir, 'doc', 'manuscript', 'figures', 'fig_pieces')
+results_folder <- 'results'  # do not specify full path, it is assumed to be in proj_dir
+```
+
+Either run the entire script to generate all figures, or run pieces of the script for individual figures (after first running the `Load and organize data` section).
 
 
 
