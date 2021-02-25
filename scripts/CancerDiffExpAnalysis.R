@@ -8,8 +8,7 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
   #                   If NULL, the function will return a list of all available cancer types.
   #
   #   classVar        Class variable by which to separate the samples. For example:
-  #                   'CancerStatus', 'TumorStage', 'TumorStageMerged', 'TumorStageBinary',
-  #                   'Race', 'Gender', or 'mutTP53'
+  #                   'CancerStatus', 'TumorStage', 'TumorStageMerged', or 'mutTP53'
   #                   If NULL, the function will return a list of all available class variables.
   #
   #   classVarLevels  The TWO values of the class variable by which the samples will be grouped.
@@ -31,12 +30,14 @@ CancerDiffExpAnalysis <- function(cancerType=NULL, classVar=NULL, classVarLevels
     stop('You must specify the path to the main CancerProteinSecretionML directory!')
   }
   
-  library(edgeR)
-  library(ggplot2)
-  library(SummarizedExperiment)
+  suppressMessages(suppressWarnings({
+    library(edgeR)
+    library(ggplot2)
+    library(SummarizedExperiment)
+  }))
   
   # Load annotation data
-  annotData <- readRDS(file.path(main_dir, 'data', 'allcancerdata_psp.rds'))
+  annotData <- readRDS(file.path(main_dir, 'data', 'allcancerdata.rds'))
   
   # obtain/verify list of cancer types to analyze
   annotData$Project <- sub('TCGA-', '', annotData$Project)  # remove 'TCGA-' prefix from cancer codes
