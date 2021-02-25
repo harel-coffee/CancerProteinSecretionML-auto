@@ -14,7 +14,7 @@ library(readxl)
 
 # specify directory information
 proj_dir <- '/Users/jonrob/Documents/PostDoc/CancerProteinSecretionML'
-fig_dir <- paste0(proj_dir, '/doc/manuscript/REVISION/figures/fig_pieces')
+fig_dir <- file.path(proj_dir, 'doc', 'manuscript', 'REVISION', 'figures', 'fig_pieces')
 results_folder <- 'results'
 
 
