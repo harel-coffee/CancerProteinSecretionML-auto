@@ -4,13 +4,13 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - bioconductor-edger
-  - bioconductor-summarizedexperiment
-  - r-base
-  - r-cowplot
-  - r-dplyr
-  - r-ggplot2
-  - r-pheatmap
-  - r-rcolorbrewer
-  - r-tidyr
+  - bioconductor-edger=3.32.0
+  - bioconductor-summarizedexperiment=1.20.0
+  - r-base=4.0.2
+  - r-cowplot=1.1.1
+  - r-dplyr=2.0.0
+  - r-ggplot2=3.3.3
+  - r-pheatmap=1.0.12
+  - r-rcolorbrewer=1.1
+  - r-tidyr=1.1.2
   - rstudio=1.1.456
