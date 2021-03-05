@@ -105,7 +105,11 @@ source('~/CancerProteinSecretionML/scripts/CancerDiffExpAnalysis.R')
 
 Run the function for the comparison(s) of interest; for example:
 ```
+# Compare p53-mutated samples vs. non-mutated samples in ACC cancer type
 CancerDiffExpAnalysis(cancerType='ACC', classVar='mutTP53', classVarLevels=c('FALSE', 'TRUE'), main_dir='~/CancerProteinSecretionML')
+
+# Compare normal vs. tumor samples in all available cancer types
+CancerDiffExpAnalysis(cancerType='all', classVar='CancerStatus', c('Solid Tissue Normal', 'Primary solid Tumor'), main_dir='~/CancerProteinSecretionML')
 ```
 
 See the function header for details on input parameters. It is also shown below for convenience.
@@ -133,7 +137,7 @@ See the function header for details on input parameters. It is also shown below 
 #                 e.g., 'usr/yourname/Documents/CancerProteinSecretionML'
 ```
 
-## Re-generate the manuscript figures
+## Regenerate the manuscript figures
 
 The figures were generated in R using the `generate_figures.R` script. 
 
@@ -150,7 +154,7 @@ r studio &
 Edit the top of the script to specify relevant paths on your local machine
 ```
 # specify directory information
-proj_dir <- '~/CancerProteinSecretionML'
+proj_dir <- '~/CancerProteinSecretionML'  # update with path on local machine
 fig_dir <- file.path(proj_dir, 'doc', 'manuscript', 'figures', 'fig_pieces')
 results_folder <- 'results'  # do not specify full path, it is assumed to be in proj_dir
 ```
