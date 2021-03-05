@@ -69,7 +69,7 @@ allCancerTypes = ['ACC', 'BLCA', 'BRCA', 'CESC', 'CHOL', 'COAD', 'DLBC',
 # attempt to generate .h5 file from allcancerdata.csv if it does not exist
 if not path.isfile(path.join(proj_dir, 'data', dataStoreFile)):
     if not path.isfile(path.join(proj_dir, 'data', 'allcancerdata.csv')):
-        raise ValueError('dataStoreFile not found in data/ directory')
+        raise ValueError('Neither dataStoreFile nor allcancerdata.csv were found in the data/ directory')
     else:
         OF.prepCancerTypeDict(hdfStore=True, inFile='allcancerdata', outFile=dataStoreFile.replace('.h5', ''))
 
