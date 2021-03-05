@@ -26,7 +26,7 @@ ClassVar = 'CancerStatus'
 # Select which levels of the class variable to keep. Not needed for classVar='AllStageCombos'
 VarLevelsToKeep = ['Solid Tissue Normal', 'Primary solid Tumor']  # for 'CancerStatus'
 # VarLevelsToKeep = ['FALSE', 'TRUE']  # for 'mutTP53' or 'Mutations'
-# VarLevelsToKeep = ['stage iv','stage x']  # for 'TumorStageMerged'
+# VarLevelsToKeep = ['stage i','stage ii']  # for 'TumorStageMerged'
 # VarLevelsToKeep = ['stage i', 'stage ii', 'stage iii', 'stage iv']  # for 'TumorStageMerged' regression
 
 # specify offset to add to TPM values before log-transforming (to handle zeros)
@@ -117,9 +117,7 @@ for CancerType in allCancerTypes:
 
     elif ClassVar == 'AllStageCombos':
         all_tumor_combinations = [['stage i', 'stage ii'], ['stage i', 'stage iii'], ['stage i', 'stage iv'], \
-                                  ['stage i', 'stage x'], ['stage ii', 'stage iii'], ['stage ii', 'stage iv'], \
-                                  ['stage ii', 'stage x'], ['stage iii', 'stage iv'], ['stage iii', 'stage x'], \
-                                  ['stage iv', 'stage x']]
+                                  ['stage ii', 'stage iii'], ['stage ii', 'stage iv'], ['stage iii', 'stage iv']]
         for stage_combo in all_tumor_combinations:
             ClassVar = 'TumorStageMerged'
             VarLevelsToKeep = stage_combo
